@@ -1,0 +1,46 @@
+name: Android build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar Gradle 9.5.0
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.5.0"
+
+      - name: Instalar plataforma Android 37
+        run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
+
+      - name: Executar testes e compilar APK
+        run: gradle --no-daemon testDebugUnitTest assembleDebug --stacktrace
+
+      - name: Guardar APK de diagnóstico
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-pack-creator-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

@@ -52,7 +52,7 @@ object PackExporter {
                 try {
                     val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
                         val data = input.readBytes()
-                        if (data.size > 100 * 1024 * 1024) throw IllegalArgumentException("Um ficheiro excede o limite de 100 MB.")
+                        if (data.size > 100 * 1024 * 1024) throw IllegalArgumentException("Um ficheiro excede o limite de 40 MB.")
                         data
                     } ?: return@mapNotNull null
                     val displayName = queryDisplayName(context, uri)
