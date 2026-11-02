@@ -82,14 +82,14 @@ jobs:
         if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.3.0
-          name: Sample Pack Creator v1.3.0
+          tag_name: v1.3.1
+          name: Sample Pack Creator v1.3.1
           target_commitish: main
           files: app/build/outputs/apk/release/app-release.apk
           overwrite_files: true
           make_latest: true
           body: |
-            Sample Pack Creator 1.3.0 — personal Android build.
+            Sample Pack Creator 1.3.1 — personal Android build.
 
             This APK is optimized and signed with the private keystore only when all four signing secrets are configured. Without them, GitHub Actions uses the Android debug key for personal testing only. A debug-signed APK is not a Play Store production release.
 

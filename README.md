@@ -67,3 +67,4 @@ For stable install-over-update behavior and Play Store submission, create one pr
 - SIGNING_KEY_PASSWORD
 
 The workflow uses the permanent key only when all four are configured. Never place the keystore, passwords, or encoded keystore in Git commits. The repository is currently public; the GitHub Actions secret store is the correct location for signing credentials.
+\n## Latest build\n\nVersion 1.3.1: review screen, circular render progress, cover image, independent quantity validation, 65 controllable audio effects, and ZIP integrity verification.\n

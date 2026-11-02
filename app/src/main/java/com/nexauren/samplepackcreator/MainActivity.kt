@@ -645,6 +645,7 @@ private fun PackCreatorScreen(
     var createdProject by remember { mutableStateOf<SavedProject?>(null) }
     var createdShareUri by remember { mutableStateOf<String?>(null) }
     var createdDestination by remember { mutableStateOf<String?>(null) }
+    var createdHasCover by remember { mutableStateOf(false) }
     val effectSettings = remember { mutableStateMapOf<String, EffectSetting>().apply { EffectCatalog.defaults().forEach { put(it.id, it) } } }
 
     val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -680,6 +681,7 @@ private fun PackCreatorScreen(
             project = completed,
             destination = createdDestination.orEmpty(),
             shareUri = createdShareUri,
+            hasCover = createdHasCover,
             onBack = onBack
         )
         return
@@ -945,6 +947,7 @@ private fun PackCreatorScreen(
                             resultError = false
                             createdShareUri = result.shareUri
                             createdDestination = result.destination
+                            createdHasCover = stableCoverUri != null
                             createdProject = StudioLibraryStore.projects(context).firstOrNull { it.id == result.projectId }
                         } catch (exception: Exception) {
                             resultMessage = "Não foi possível criar o pack: " + (exception.message ?: "erro desconhecido")
@@ -975,6 +978,7 @@ private fun PackSuccessScreen(
     project: SavedProject,
     destination: String,
     shareUri: String?,
+    hasCover: Boolean,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1062,7 +1066,7 @@ private fun PackSuccessScreen(
                 Spacer(Modifier.width(8.dp))
                 Text("README.txt  ·  informações do produto", color = TextMuted, fontSize = 11.sp)
             }
-            if (project.samples.any { it.name.startsWith("cover.") }) {
+            if (hasCover) {
                 Row(Modifier.fillMaxWidth().padding(start = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Palette, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
