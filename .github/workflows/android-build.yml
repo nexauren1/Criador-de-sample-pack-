@@ -24,8 +24,9 @@ jobs:
           java-version: "17"
 
       - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
-
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          yes | sdkmanager --licenses
       - name: Instalar Gradle 9.5.0
         uses: gradle/actions/setup-gradle@v4
         with:
