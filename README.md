@@ -21,6 +21,7 @@ A private Android sound-design studio for generating, processing, previewing and
 - Custom categories with editable names, icons and colors.
 - Offline synthesis from zero: Kick, Snare, Clap, Hi-Hat, Bass, Percussion, Synth, FX, Pluck and Tom.
 - Procedural sound design using oscillators, envelopes, noise, pitch movement, filtering and variation parameters.
+- Advanced synthesis controls for semitone tuning, decay, brightness and saturation/drive.
 - Generated samples saved to a persistent local sound library.
 - Audio preview and playback using AndroidX Media3 ExoPlayer.
 - Import and preview through the Android document picker.

@@ -10,7 +10,8 @@ import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
-import kotlin.math.sqrt
+import kotlin.math.pow
+import kotlin.math.tanh
 
 /**
  * Offline sample synthesizer. Every output is newly generated PCM audio,
@@ -24,7 +25,11 @@ object AudioSynthesizer {
         durationMs: Int = 700,
         sampleRate: Int = 44100,
         variation: Int = 0,
-        seed: Long = System.nanoTime()
+        seed: Long = System.nanoTime(),
+        pitchSemitones: Float = 0f,
+        decay: Float = 1f,
+        brightness: Float = 1f,
+        drive: Float = 1f
     ): ByteArray {
         val rate = sampleRate.coerceIn(22050, 96000)
         val length = durationMs.coerceIn(80, 6000)
@@ -34,11 +39,17 @@ object AudioSynthesizer {
         val type = soundType.lowercase()
         val detune = 0.92 + (variation % 13) * 0.013
         val pitchOffset = (variation % 11) * 3.5
+        val tuning = 2.0.pow(pitchSemitones.coerceIn(-24f, 24f).toDouble() / 12.0)
+        val decayScale = decay.coerceIn(0.25f, 4f).toDouble()
+        val brightnessScale = brightness.coerceIn(0.15f, 2.5f).toDouble()
+        val driveScale = drive.coerceIn(0.5f, 8f).toDouble()
+        val driveNormalizer = tanh(driveScale).coerceAtLeast(0.000001)
 
         var phase = 0.0
         var phase2 = 0.0
         var phase3 = 0.0
         var filterState = 0.0
+        var toneState = 0.0
         var previousNoise = 0.0
 
         for (i in 0 until frames) {
@@ -49,72 +60,72 @@ object AudioSynthesizer {
                 type.contains("kick") || type.contains("808") -> {
                     val start = 125.0 + pitchOffset * 2.0
                     val base = 39.0 + (variation % 7) * 2.5
-                    val frequency = base + start * exp(-t * (22.0 + (variation % 5) * 3.0))
+                    val frequency = (base + start * exp(-t * (22.0 + (variation % 5) * 3.0) / decayScale)) * tuning
                     phase += 2.0 * PI * frequency / rate
-                    val body = sin(phase) * exp(-t * (5.5 + (variation % 6) * 0.45))
-                    val click = noise * exp(-t * 105.0) * (0.06 + (variation % 4) * 0.018)
+                    val body = sin(phase) * exp(-t * (5.5 + (variation % 6) * 0.45) / decayScale)
+                    val click = noise * exp(-t * 105.0 / decayScale) * (0.06 + (variation % 4) * 0.018)
                     body * 0.95 + click
                 }
                 type.contains("snare") -> {
-                    phase += 2.0 * PI * (175.0 + pitchOffset * 2.0) / rate
-                    val tone = sin(phase) * exp(-t * (19.0 + variation % 7))
+                    phase += 2.0 * PI * (175.0 + pitchOffset * 2.0) * tuning / rate
+                    val tone = sin(phase) * exp(-t * (19.0 + variation % 7) / decayScale)
                     val high = noise - previousNoise * 0.82
                     previousNoise = noise
-                    val snap = exp(-t * (9.0 + variation % 8)) * high
+                    val snap = exp(-t * (9.0 + variation % 8) / decayScale) * high
                     tone * 0.34 + snap * 0.52
                 }
                 type.contains("clap") -> {
                     val spacing = 0.012 + (variation % 5) * 0.003
-                    val burst1 = exp(-abs(t) * 45.0)
-                    val burst2 = if (t >= spacing) exp(-(t - spacing) * 55.0) else 0.0
-                    val burst3 = if (t >= spacing * 2.2) exp(-(t - spacing * 2.2) * 62.0) else 0.0
+                    val burst1 = exp(-abs(t) * 45.0 / decayScale)
+                    val burst2 = if (t >= spacing) exp(-(t - spacing) * 55.0 / decayScale) else 0.0
+                    val burst3 = if (t >= spacing * 2.2) exp(-(t - spacing * 2.2) * 62.0 / decayScale) else 0.0
                     val high = noise - previousNoise * 0.72
                     previousNoise = noise
-                    high * (burst1 * 0.32 + burst2 * 0.25 + burst3 * 0.18) * exp(-t * 2.8)
+                    high * (burst1 * 0.32 + burst2 * 0.25 + burst3 * 0.18) * exp(-t * 2.8 / decayScale)
                 }
                 type.contains("hat") || type.contains("shaker") -> {
-                    val decay = exp(-t * (22.0 + (variation % 8) * 5.0))
-                    val metal = sin(2.0 * PI * (3120.0 + pitchOffset * 5.0) * t) * 0.32 +
-                        sin(2.0 * PI * (4870.0 + pitchOffset * 7.0) * t) * 0.22 +
-                        sin(2.0 * PI * (6380.0 + pitchOffset * 9.0) * t) * 0.16
+                    val decayEnvelope = exp(-t * (22.0 + (variation % 8) * 5.0) / decayScale)
+                    val metal = sin(2.0 * PI * (3120.0 + pitchOffset * 5.0) * t * tuning) * 0.32 +
+                        sin(2.0 * PI * (4870.0 + pitchOffset * 7.0) * t * tuning) * 0.22 +
+                        sin(2.0 * PI * (6380.0 + pitchOffset * 9.0) * t * tuning) * 0.16
                     val high = noise - previousNoise * 0.91
                     previousNoise = noise
-                    (metal + high * 0.48) * decay
+                    (metal + high * 0.48) * decayEnvelope
                 }
                 type.contains("bass") || type.contains("sub") -> {
-                    val frequency = 48.0 + pitchOffset + 14.0 * sin(2.0 * PI * 0.23 * t)
+                    val frequency = (48.0 + pitchOffset + 14.0 * sin(2.0 * PI * 0.23 * t)) * tuning
                     phase += 2.0 * PI * frequency / rate
                     val saw = 2.0 * (phase / (2.0 * PI) - kotlin.math.floor(phase / (2.0 * PI))) - 1.0
                     filterState += (saw - filterState) * (0.018 + (variation % 6) * 0.006)
                     filterState * (0.78 + 0.08 * sin(2.0 * PI * 0.4 * t))
                 }
                 type.contains("tom") -> {
-                    val frequency = 105.0 + pitchOffset + 90.0 * exp(-t * 13.0)
+                    val frequency = (105.0 + pitchOffset + 90.0 * exp(-t * 13.0 / decayScale)) * tuning
                     phase += 2.0 * PI * frequency / rate
-                    sin(phase) * exp(-t * (7.0 + variation % 5))
+                    sin(phase) * exp(-t * (7.0 + variation % 5) / decayScale)
                 }
                 type.contains("perc") || type.contains("bongo") -> {
-                    val frequency = 210.0 + pitchOffset * 3.0 + 60.0 * exp(-t * 20.0)
+                    val frequency = (210.0 + pitchOffset * 3.0 + 60.0 * exp(-t * 20.0 / decayScale)) * tuning
                     phase += 2.0 * PI * frequency / rate
                     phase2 += 2.0 * PI * (frequency * 1.47) / rate
-                    (sin(phase) * 0.55 + sin(phase2) * 0.22 + noise * 0.10) * exp(-t * 12.0)
+                    (sin(phase) * 0.55 + sin(phase2) * 0.22 + noise * 0.10) * exp(-t * 12.0 / decayScale)
                 }
                 type.contains("pluck") -> {
-                    val frequency = 230.0 + pitchOffset * 4.0
+                    val frequency = (230.0 + pitchOffset * 4.0) * tuning
                     phase += 2.0 * PI * frequency / rate
                     phase2 += 2.0 * PI * frequency * (1.997 + variation % 4 * 0.001) / rate
-                    val envelope = exp(-t * (4.5 + variation % 7))
+                    val envelope = exp(-t * (4.5 + variation % 7) / decayScale)
                     (sin(phase) * 0.65 + sin(phase2) * 0.25) * envelope
                 }
                 type.contains("fx") || type.contains("sweep") -> {
-                    val frequency = 180.0 + 4200.0 * normalized * normalized + pitchOffset * 3.0
+                    val frequency = (180.0 + 4200.0 * normalized * normalized + pitchOffset * 3.0) * tuning
                     phase += 2.0 * PI * frequency / rate
                     val filteredNoise = noise - previousNoise * 0.86
                     previousNoise = noise
                     (sin(phase) * 0.42 + filteredNoise * 0.42) * (1.0 - normalized * 0.35)
                 }
                 else -> {
-                    val base = 220.0 + pitchOffset * 2.0
+                    val base = (220.0 + pitchOffset * 2.0) * tuning
                     phase += 2.0 * PI * base / rate
                     phase2 += 2.0 * PI * base * detune / rate
                     phase3 += 2.0 * PI * base * 2.01 / rate
@@ -125,8 +136,12 @@ object AudioSynthesizer {
                 }
             }
             val variationGain = 0.88 + (variation % 9) * 0.025
-            val soft = sample * variationGain
-            output[i] = (soft / (1.0 + abs(soft) * 0.25)).coerceIn(-0.98, 0.98).toFloat()
+            val raw = sample * variationGain
+            val toneAlpha = (0.06 + brightnessScale * 0.12).coerceIn(0.08, 0.36)
+            toneState += (raw - toneState) * toneAlpha
+            val shaped = toneState + (raw - toneState) * brightnessScale
+            val driven = tanh(shaped * driveScale) / driveNormalizer
+            output[i] = (driven / (1.0 + abs(driven) * 0.10)).coerceIn(-0.98, 0.98).toFloat()
         }
 
         // A subtle fade avoids clicks at the end of tonal sounds.

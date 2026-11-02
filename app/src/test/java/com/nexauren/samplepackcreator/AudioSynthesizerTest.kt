@@ -45,6 +45,27 @@ class AudioSynthesizerTest {
         assertNotEquals(original.toList(), processed.toList())
     }
 
+    @Test
+    fun synthesisControlsProduceDifferentSoundDesign() {
+        val clean = AudioSynthesizer.generate("Synth", durationMs = 600, seed = 2048L)
+        val detuned = AudioSynthesizer.generate(
+            "Synth",
+            durationMs = 600,
+            seed = 2048L,
+            pitchSemitones = 7f
+        )
+        val saturated = AudioSynthesizer.generate(
+            "Synth",
+            durationMs = 600,
+            seed = 2048L,
+            drive = 3.4f,
+            brightness = 1.8f,
+            decay = 2.2f
+        )
+        assertNotEquals(clean.toList(), detuned.toList())
+        assertNotEquals(clean.toList(), saturated.toList())
+    }
+
     private fun unsignedShort(bytes: ByteArray, offset: Int): Int =
         (bytes[offset].toInt() and 0xff) or ((bytes[offset + 1].toInt() and 0xff) shl 8)
 
