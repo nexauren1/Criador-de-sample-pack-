@@ -134,8 +134,12 @@ object PackExporter {
                 total += produced
             }
             if (produced < requested) {
-                notes += category.name + ": " + produced + " ficheiro(s) criado(s) de " + requested +
-                    " pedido(s). Adiciona mais fontes compatíveis para obter mais variações."
+                workRoot.deleteRecursively()
+                throw IllegalStateException(
+                    "${category.name}: só foi possível criar ${produced} de ${requested} samples. " +
+                        "Verifica se os ficheiros de origem podem ser descodificados neste dispositivo " +
+                        "ou importa mais WAV/áudio compatível. O ZIP não foi publicado com uma contagem incompleta."
+                )
             }
         }
 
