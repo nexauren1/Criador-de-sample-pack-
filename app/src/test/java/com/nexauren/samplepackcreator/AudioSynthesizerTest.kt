@@ -87,6 +87,23 @@ class AudioSynthesizerTest {
     }
 
 
+
+    @Test
+    fun synthesizedPresetsHaveUsefulOutputLevelAndMusicalBody() {
+        listOf("Kick", "Snare", "Clap", "Hi-Hat", "Bass", "Percussion", "Synth", "FX", "Pluck", "Tom").forEach { type ->
+            val wav = AudioSynthesizer.generate(type, durationMs = 700, seed = 2026L)
+            val pcm = FloatArray((wav.size - 44) / 2) { index ->
+                val offset = 44 + index * 2
+                val value = ((wav[offset].toInt() and 0xff) or (wav[offset + 1].toInt() shl 8)).toShort().toInt()
+                value / 32768f
+            }
+            val peak = pcm.maxOf { kotlin.math.abs(it) }
+            val rms = kotlin.math.sqrt(pcm.map { it * it }.average()).toFloat()
+            assertTrue("$type peak too quiet: $peak", peak > 0.65f)
+            assertTrue("$type RMS too quiet: $rms", rms > 0.015f)
+        }
+    }
+
     @Test
     fun allAvailableEffectsAreIndividuallyConfigurableAndRenderAudio() {
         val original = AudioSynthesizer.generate("Kick", durationMs = 180, seed = 174L)
