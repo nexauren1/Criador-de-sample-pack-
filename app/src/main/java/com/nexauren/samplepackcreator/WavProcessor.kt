@@ -21,15 +21,14 @@ object WavProcessor {
                 .map { it.replace(Regex("[^A-Za-z0-9]+"), "") }
             (labels + if (active.size > 2) listOf("Chain") else emptyList()).joinToString("_")
         } else {
-            EffectCatalog.all[index.mod(EffectCatalog.all.size)].name.replace(Regex("[^A-Za-z0-9]+"), "")
+            "Clean"
         }
-        val variationSuffix = if (active.isEmpty() && index >= EffectCatalog.all.size)
-            "_Alt" + (index / EffectCatalog.all.size + 1) else ""
-        return (selected.ifBlank { "Processed" } + variationSuffix).take(42)
+        return selected.ifBlank { "Clean" }.take(42)
     }
 
     fun process(input: ByteArray, variationIndex: Int, effects: List<EffectSetting> = emptyList()): ByteArray? {
         val wav = parse(input) ?: return null
+        if (effects.none { it.enabled && it.intensity > 0f }) return input.copyOf()
         val samples = FloatArray(wav.dataLength / 2)
         var cursor = wav.dataOffset
         for (i in samples.indices) { samples[i] = readShort(input, cursor) / 32768f; cursor += 2 }
