@@ -3,6 +3,15 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val releaseKeystorePath = System.getenv("SIGNING_KEYSTORE_PATH")
+val releaseStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+val hasPrivateReleaseSigning = !releaseKeystorePath.isNullOrBlank() &&
+    !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyAlias.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank()
+
 android {
     namespace = "com.nexauren.samplepackcreator"
     compileSdk = 37
@@ -15,6 +24,17 @@ android {
         versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        create("privateRelease") {
+            if (hasPrivateReleaseSigning) {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildFeatures {
@@ -31,9 +51,9 @@ android {
         getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true
-            // This key is only for installing a private test build.
-            // Replace it with a private release key before any store distribution.
-            signingConfig = signingConfigs.getByName("debug")
+            // Use a permanent private key when configured; otherwise a debug key for private testing.
+            signingConfig = if (hasPrivateReleaseSigning) signingConfigs.getByName("privateRelease")
+                else signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -56,7 +76,6 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
 
-    // Offline and local-file playback/preview, with Android platform decoders.
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 

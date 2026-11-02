@@ -56,3 +56,14 @@ Open the repository in a compatible Android Studio version and run the app confi
 Media3 handles playback for the file types supported by the Android device. Processing imported compressed audio uses the platform decoder; exact support depends on the device's codec implementations. If a source cannot be decoded, the exporter retains it as an original file instead of claiming that it created effect variations from it.
 
 Procedurally synthesized samples are new mono 16-bit PCM WAV audio and are available for immediate preview.
+
+## Permanent private APK signing
+
+For stable install-over-update behavior and Play Store submission, create one private Android keystore and keep it backed up offline. Configure these four values under GitHub repository Settings -> Secrets and variables -> Actions:
+
+- SIGNING_KEYSTORE_BASE64 (Base64-encoded keystore file)
+- SIGNING_STORE_PASSWORD
+- SIGNING_KEY_ALIAS
+- SIGNING_KEY_PASSWORD
+
+The workflow uses the permanent key only when all four are configured. Never place the keystore, passwords, or encoded keystore in Git commits. The repository is currently public; the GitHub Actions secret store is the correct location for signing credentials.

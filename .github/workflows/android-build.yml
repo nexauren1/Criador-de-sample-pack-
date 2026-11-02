@@ -38,12 +38,22 @@ jobs:
           android sdk install build-tools/36.0.0
 
       - name: Preparar assinatura privada (opcional)
-        if: ${{ secrets.SIGNING_KEYSTORE_BASE64 != '' }}
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
-          echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release-key.jks"
-          echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release-key.jks" >> "$GITHUB_ENV"
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            if [ -z "$SIGNING_STORE_PASSWORD" ] || [ -z "$SIGNING_KEY_ALIAS" ] || [ -z "$SIGNING_KEY_PASSWORD" ]; then
+              echo "A assinatura privada requer os quatro GitHub Actions secrets."
+              exit 1
+            fi
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release-key.jks"
+            echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release-key.jks" >> "$GITHUB_ENV"
+          else
+            echo "Sem assinatura privada configurada: será usada a chave de teste."
+          fi
 
       - name: Executar testes e compilar APK
         env:
