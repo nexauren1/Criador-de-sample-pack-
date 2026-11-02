@@ -40,11 +40,19 @@ class AudioSynthesizerTest {
     @Test
     fun processorCreatesAValidDifferentWave() {
         val original = AudioSynthesizer.generate("Clap", durationMs = 500, seed = 72L)
-        val processed = WavProcessor.process(original, 2)
+        val processed = WavProcessor.process(original, 2, listOf(EffectSetting("reverb_room", true, 65f)))
         assertNotNull(processed)
         assertTrue(processed!!.size > 44)
         assertEquals("RIFF", String(processed.copyOfRange(0, 4), Charsets.US_ASCII))
         assertNotEquals(original.toList(), processed.toList())
+    }
+
+    @Test
+    fun processorLeavesAudioUntouchedWhenNoEffectIsSelected() {
+        val original = AudioSynthesizer.generate("Kick", durationMs = 500, seed = 123L)
+        val processed = WavProcessor.process(original, 4, emptyList())
+        assertNotNull(processed)
+        assertArrayEquals(original, processed)
     }
 
     @Test
