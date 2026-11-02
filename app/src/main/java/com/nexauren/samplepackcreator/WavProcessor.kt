@@ -36,6 +36,8 @@ object WavProcessor {
         val active = effects.filter { it.enabled && it.intensity > 0f }
         // A clean render must remain clean. Never insert a random effect/noise
         // when the user has not explicitly selected an effect.
+        if (active.isEmpty()) return input.copyOf()
+        val referencePeak = samples.maxOf { abs(it) }.coerceAtLeast(0.000001f)
         if (active.isNotEmpty()) {
             active.forEachIndexed { effectIndex, setting ->
                 // Keep the selected effect chain, but nudge the strength per
@@ -46,8 +48,17 @@ object WavProcessor {
                 applyEffect(samples, wav.channels, wav.sampleRate, setting.id, variedIntensity, variationIndex)
             }
         }
-        // No artificial gain wobble or pseudo-variation: the source stays intact
-        // unless a user-selected effect is enabled.
+        // Restore lost loudness after time effects without boosting near-silent
+        // residuals. If a chain nearly cancels the source, blend dry audio back.
+        var processedPeak = samples.maxOf { abs(it) }.coerceAtLeast(0.000001f)
+        if (processedPeak < referencePeak * 0.18f) {
+            for (i in samples.indices) {
+                samples[i] = samples[i] * 0.45f + readShort(input, wav.dataOffset + i * 2) / 32768f * 0.55f
+            }
+            processedPeak = samples.maxOf { abs(it) }.coerceAtLeast(0.000001f)
+        }
+        val loudnessGain = (referencePeak * 0.88f / processedPeak).coerceIn(0.5f, 8f)
+        for (i in samples.indices) samples[i] = (samples[i] * loudnessGain).coerceIn(-0.96f, 0.96f)
         val output = input.copyOf()
         cursor = wav.dataOffset
         for (sample in samples) { writeShort(output,cursor,(sample.coerceIn(-1f,1f)*32767f).toInt()); cursor += 2 }
@@ -62,12 +73,34 @@ object WavProcessor {
         val speed = 0.15f + mix * 3.1f
         val delayFrames = max(1,(rate * (0.025f + mix * 0.28f)).toInt())
         when (id) {
-            "reverse","reverse_gate","reverse_swell" -> {
+            "reverse" -> {
                 for (frame in 0 until frames) for (ch in 0 until channels) {
-                    val i=frame*channels+ch
-                    val reversed=original[(frames-frame-1)*channels+ch]
-                    val gate=when(id) { "reverse_gate" -> if ((frame/max(1,rate/12))%2==0) 1f else 0.22f; "reverse_swell" -> frame.toFloat()/frames; else -> 1f }
-                    x[i]=original[i]*(1f-mix)+reversed*gate*mix
+                    val i = frame * channels + ch
+                    val reversed = original[(frames - frame - 1) * channels + ch]
+                    x[i] = original[i] * (1f - mix) + reversed * mix
+                }
+            }
+            "reverse_gate" -> {
+                // Tempo-like amplitude gate. It does not reverse a second time.
+                val period = max(1, rate / 8)
+                for (frame in 0 until frames) {
+                    val position = (frame % period).toFloat() / period
+                    val gate = when {
+                        position < 0.58f -> 1f
+                        position > 0.66f -> 0.18f
+                        else -> 1f - ((position - 0.58f) / 0.08f) * 0.82f
+                    }
+                    for (ch in 0 until channels) {
+                        val i = frame * channels + ch
+                        x[i] = original[i] * (1f - mix) + original[i] * gate * mix
+                    }
+                }
+            }
+            "reverse_swell" -> {
+                for (frame in 0 until frames) for (ch in 0 until channels) {
+                    val i = frame * channels + ch
+                    val swell = (frame.toFloat() / frames).coerceIn(0f, 1f)
+                    x[i] = original[i] * (1f - mix) + original[i] * swell * mix
                 }
             }
             "reverb_room","reverb_hall","ambience","shimmer" -> {
