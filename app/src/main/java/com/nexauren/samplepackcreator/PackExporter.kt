@@ -19,10 +19,16 @@ object PackExporter {
     data class Result(
         val fileName: String,
         val totalSamples: Int,
-        val destination: String
+        val destination: String,
+        val projectId: String
     )
 
-    private data class SourceAudio(val name: String, val bytes: ByteArray, val extension: String)
+    private data class SourceAudio(
+        val name: String,
+        val bytes: ByteArray,
+        val extension: String,
+        val processableWav: ByteArray?
+    )
 
     fun create(
         context: Context,
@@ -30,6 +36,7 @@ object PackExporter {
         genre: String,
         categories: List<SampleCategory>,
         selectedFiles: Map<String, List<Uri>>,
+        generatedFiles: Map<String, List<File>>,
         quantities: Map<String, Int>,
         samplePrefixes: Map<String, String>
     ): Result {
@@ -41,71 +48,78 @@ object PackExporter {
         }
 
         val counts = linkedMapOf<String, Int>()
-        var total = 0
         val notes = mutableListOf<String>()
+        var total = 0
 
         categories.forEach { category ->
-            val uris = selectedFiles[category.id].orEmpty()
-            if (uris.isEmpty()) return@forEach
+            val sources = mutableListOf<SourceAudio>()
 
-            val sources = uris.mapNotNull { uri ->
+            selectedFiles[category.id].orEmpty().forEach { uri ->
                 try {
                     val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
                         val data = input.readBytes()
-                        if (data.size > 100 * 1024 * 1024) throw IllegalArgumentException("Um ficheiro excede o limite de 40 MB.")
+                        if (data.size > 40 * 1024 * 1024) {
+                            throw IllegalArgumentException("Um ficheiro excede o limite de 40 MB.")
+                        }
                         data
-                    } ?: return@mapNotNull null
-                    val displayName = queryDisplayName(context, uri)
-                    val extension = displayName.substringAfterLast('.', "wav").lowercase(Locale.ROOT)
-                    SourceAudio(displayName, bytes, extension)
+                    } ?: throw IllegalStateException("Não foi possível ler um ficheiro de áudio.")
+                    val name = queryDisplayName(context, uri)
+                    val extension = name.substringAfterLast('.', "audio").lowercase(Locale.ROOT)
+                    val directWav = if (extension == "wav" && WavProcessor.process(bytes, 0) != null) bytes else null
+                    val normalized = directWav ?: AudioDecoder.decodeToWav(context, uri)
+                    sources += SourceAudio(name, bytes, extension, normalized)
+                    if (normalized == null) {
+                        notes += name + ": preservado no formato original; este dispositivo não conseguiu descodificá-lo para gerar variações."
+                    }
                 } catch (exception: Exception) {
-                    notes.add(category.name + ": " + (exception.message ?: "um ficheiro não pôde ser lido"))
-                    null
+                    notes += category.name + ": " + (exception.message ?: "um ficheiro não pôde ser lido")
+                }
+            }
+
+            generatedFiles[category.id].orEmpty().forEach { file ->
+                try {
+                    if (file.isFile && file.length() <= 40L * 1024L * 1024L) {
+                        val bytes = file.readBytes()
+                        val processable = if (WavProcessor.process(bytes, 0) != null) bytes else null
+                        sources += SourceAudio(file.name, bytes, file.extension.lowercase(Locale.ROOT), processable)
+                    }
+                } catch (exception: Exception) {
+                    notes += file.name + ": " + (exception.message ?: "um sample gerado não pôde ser lido")
                 }
             }
 
             if (sources.isEmpty()) return@forEach
-            val categoryFolder = File(packFolder, safeName(category.name).ifBlank { "Samples" })
+
+            val categoryName = safeName(category.name).ifBlank { "Samples" }
+            val categoryFolder = File(packFolder, categoryName)
             if (!categoryFolder.mkdirs() && !categoryFolder.isDirectory) {
                 throw IllegalStateException("Não foi possível criar a pasta " + category.name)
             }
 
             val requested = (quantities[category.id] ?: 10).coerceIn(1, 250)
-            val samplePrefix = safeName(samplePrefixes[category.id] ?: category.name).ifBlank { safeName(category.name) }
+            val samplePrefix = safeName(samplePrefixes[category.id] ?: category.name).ifBlank { categoryName }
             var produced = 0
             var pass = 0
             while (produced < requested && pass < requested) {
                 var producedInPass = 0
                 sources.forEachIndexed { sourceIndex, source ->
                     if (produced >= requested) return@forEachIndexed
-
                     val variationIndex = pass * sources.size + sourceIndex
-                    val processed = if (source.extension == "wav") {
-                        WavProcessor.process(source.bytes, variationIndex)
-                    } else {
-                        null
-                    }
-
-                    val outputBytes = when {
-                        processed != null -> processed
-                        pass == 0 -> source.bytes
-                        else -> null
-                    }
-
+                    val processed = source.processableWav?.let { WavProcessor.process(it, variationIndex) }
+                    val outputBytes = processed ?: if (pass == 0) source.bytes else null
                     if (outputBytes != null) {
-                        produced += 1
-                        producedInPass += 1
-                        val label = if (processed != null) WavProcessor.effectName(variationIndex) else "Original"
-                        val extension = if (processed != null) "wav" else source.extension.ifBlank { "audio" }
-                        val outputName = samplePrefix + "_" +
-                            produced.toString().padStart(3, '0') + "_" +
-                            label + "." + extension
+                        produced++
+                        producedInPass++
+                        val processedName = processed != null
+                        val label = if (processedName) WavProcessor.effectName(variationIndex) else "Original"
+                        val extension = if (processedName) "wav" else source.extension.ifBlank { "audio" }
+                        val outputName = samplePrefix + "_" + produced.toString().padStart(3, '0') +
+                            "_" + label + "." + extension
                         File(categoryFolder, outputName).writeBytes(outputBytes)
                     }
                 }
-
                 if (producedInPass == 0) break
-                pass += 1
+                pass++
             }
 
             if (produced > 0) {
@@ -113,24 +127,58 @@ object PackExporter {
                 total += produced
             }
             if (produced < requested) {
-                notes.add(category.name + ": " + produced + " ficheiro(s) criado(s) de " + requested + " pedido(s). O formato de origem não permite mais variações neste momento.")
+                notes += category.name + ": " + produced + " ficheiro(s) criado(s) de " + requested +
+                    " pedido(s). Adiciona mais fontes compatíveis para obter mais variações."
             }
         }
 
         if (total == 0) {
             workRoot.deleteRecursively()
-            throw IllegalStateException("Nenhum áudio pôde ser incluído. Verifica os ficheiros selecionados.")
+            throw IllegalStateException("Nenhum áudio pôde ser incluído. Seleciona fontes compatíveis ou gera samples primeiro.")
         }
 
-        val readme = buildReadme(packName, genre, counts, total, notes)
-        File(packFolder, "README.txt").writeText(readme, Charsets.UTF_8)
+        File(packFolder, "README.txt").writeText(buildReadme(packName, genre, counts, total, notes), Charsets.UTF_8)
+
+        val projectId = StudioLibraryStore.newId()
+        val projectRoot = File(context.filesDir, "sample-pack-studio/projects/$projectId")
+        val persistentFolder = File(projectRoot, safePackName)
+        if (!persistentFolder.parentFile!!.exists() && !persistentFolder.parentFile!!.mkdirs()) {
+            workRoot.deleteRecursively()
+            throw IllegalStateException("Não foi possível guardar o projeto na biblioteca.")
+        }
+        packFolder.copyRecursively(persistentFolder, overwrite = true)
 
         val zipName = safePackName + ".zip"
-        val temporaryZip = File(workRoot, zipName)
-        zipFolder(packFolder, temporaryZip)
-        val destination = copyZipToDownloads(context, temporaryZip, zipName)
+        val internalZip = File(projectRoot, zipName)
+        zipFolder(persistentFolder, internalZip)
+        val destination = copyZipToDownloads(context, internalZip, zipName)
+
+        val sampleRecords = persistentFolder.walkTopDown()
+            .filter { it.isFile && it.name != "README.txt" }
+            .map { file ->
+                ProjectSample(
+                    name = file.name,
+                    category = file.parentFile?.name ?: "Samples",
+                    path = file.absolutePath,
+                    bytes = file.length()
+                )
+            }.toList()
+
+        StudioLibraryStore.saveProject(
+            context,
+            SavedProject(
+                id = projectId,
+                title = packName,
+                genre = genre,
+                createdAt = System.currentTimeMillis(),
+                totalSamples = total,
+                folderPath = persistentFolder.absolutePath,
+                zipPath = internalZip.absolutePath,
+                samples = sampleRecords
+            )
+        )
         workRoot.deleteRecursively()
-        return Result(zipName, total, destination)
+        return Result(zipName, total, destination, projectId)
     }
 
     private fun buildReadme(
@@ -155,9 +203,13 @@ object PackExporter {
         builder.appendLine("TOTAL")
         builder.appendLine(total.toString() + " audio files")
         builder.appendLine()
-        builder.appendLine("FORMATS AND PROCESSING")
-        builder.appendLine("- Supported uncompressed 16-bit PCM WAV files can be processed into distinct effect variations.")
-        builder.appendLine("- Other audio formats are preserved as original files; unsupported files are not falsely labelled as processed variations.")
+        builder.appendLine("AUDIO FORMATS")
+        builder.appendLine("- Generated and processed samples are exported as 16-bit PCM WAV.")
+        builder.appendLine("- Source files that cannot be decoded on this Android device are preserved in their original format.")
+        builder.appendLine()
+        builder.appendLine("PROCESSING")
+        builder.appendLine("- Original audio can be transformed using punch, low-pass tone shaping, distortion, reverse, delay, bit reduction, high-pass and saturation variations.")
+        builder.appendLine("- Synthesized audio is generated locally by Sample Pack Creator.")
         builder.appendLine()
         builder.appendLine("USAGE")
         builder.appendLine("Check the applicable licence and usage rights of every source recording before distributing this pack.")
@@ -180,21 +232,18 @@ object PackExporter {
         var name = "Audio_Sample.wav"
         context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-            if (index >= 0 && cursor.moveToFirst()) {
-                name = cursor.getString(index) ?: name
-            }
+            if (index >= 0 && cursor.moveToFirst()) name = cursor.getString(index) ?: name
         }
         return name
     }
 
-    private fun safeName(value: String): String {
-        return value.trim()
+    private fun safeName(value: String): String =
+        value.trim()
             .replace(Regex("[^A-Za-z0-9 _.-]"), "")
             .replace(Regex("\\s+"), "_")
             .replace(Regex("_+"), "_")
             .trim('_', '.', ' ')
             .take(64)
-    }
 
     private fun zipFolder(folder: File, zipFile: File) {
         ZipOutputStream(FileOutputStream(zipFile)).use { zip ->
