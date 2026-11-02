@@ -44,7 +44,7 @@ A private Android sound-design studio for generating, processing, previewing and
 - Compose BOM 2026.08.00.
 - AndroidX Media3 ExoPlayer 1.11.1.
 
-Open the repository in a compatible Android Studio version and run the app configuration. A GitHub Actions workflow runs unit tests and creates a debug APK artifact on pushes to the main branch.
+Open the repository in a compatible Android Studio version and run the app configuration. The GitHub Actions workflow runs unit tests and builds both debug and optimized release APKs. The optimized personal release APK is signed with the standard debug key for device testing only; configure a private release key before distributing through any app store.
 
 ## Audio compatibility note
 

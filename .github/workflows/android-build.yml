@@ -38,9 +38,17 @@ jobs:
           android sdk install build-tools/36.0.0
 
       - name: Executar testes e compilar APK
-        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug --stacktrace
+        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug assembleRelease --stacktrace
 
-      - name: Guardar APK de diagnóstico
+      - name: Guardar APK pessoal (versão otimizada)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-pack-creator-private-release
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Guardar APK de depuração
         if: success()
         uses: actions/upload-artifact@v4
         with:

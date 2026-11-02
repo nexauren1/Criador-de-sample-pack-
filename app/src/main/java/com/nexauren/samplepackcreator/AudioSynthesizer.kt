@@ -148,7 +148,7 @@ object AudioSynthesizer {
         val fadeFrames = min(frames / 5, rate / 30)
         if (fadeFrames > 0) {
             for (i in 0 until fadeFrames) {
-                val gain = i.toFloat() / fadeFrames
+                val gain = (fadeFrames - i - 1).toFloat() / fadeFrames
                 output[frames - fadeFrames + i] *= gain
             }
         }

@@ -435,7 +435,7 @@ private fun CategoryEditorDialog(initial: SampleCategory?, onDismiss: () -> Unit
         title = { Text(if (initial == null) "Nova categoria" else "Editar categoria") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome da categoria") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome da categoria (em inglês)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Text("Escolher ícone", color = TextMuted, fontSize = 12.sp)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     icons.forEach { icon ->
@@ -655,7 +655,7 @@ private fun PackCreatorScreen(
         }
         Spacer(Modifier.height(18.dp))
         SectionCard("Informações do produto", "A interface fica em português; os nomes exportados ficam em inglês.") {
-            OutlinedTextField(value = packName, onValueChange = { packName = it }, label = { Text("Nome do pack") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = packName, onValueChange = { packName = it }, label = { Text("Nome do pack (em inglês)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = genre, onValueChange = { genre = it }, label = { Text("Género musical") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         }
         Spacer(Modifier.height(14.dp))

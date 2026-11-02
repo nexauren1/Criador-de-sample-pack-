@@ -19,6 +19,8 @@ class AudioSynthesizerTest {
         assertEquals(44100, littleEndianInt(wav, 24))
         assertEquals(16, unsignedShort(wav, 34))
         assertEquals(wav.size - 44, littleEndianInt(wav, 40))
+        val finalPcm = ((wav[wav.lastIndex].toInt() shl 8) or (wav[wav.lastIndex - 1].toInt() and 0xFF)).toShort().toInt()
+        assertEquals(0, finalPcm)
     }
 
     @Test
@@ -64,6 +66,16 @@ class AudioSynthesizerTest {
         )
         assertNotEquals(clean.toList(), detuned.toList())
         assertNotEquals(clean.toList(), saturated.toList())
+    }
+
+    @Test
+    fun everyBuiltInSoundPresetProducesValidWav() {
+        AudioSynthesizer.soundTypes.forEach { type ->
+            val wav = AudioSynthesizer.generate(type, durationMs = 120, seed = 77L)
+            assertEquals("RIFF", String(wav.copyOfRange(0, 4), Charsets.US_ASCII))
+            assertEquals("WAVE", String(wav.copyOfRange(8, 12), Charsets.US_ASCII))
+            assertTrue(wav.size > 44)
+        }
     }
 
     private fun unsignedShort(bytes: ByteArray, offset: Int): Int =
