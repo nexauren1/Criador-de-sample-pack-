@@ -20,7 +20,8 @@ object PackExporter {
         val fileName: String,
         val totalSamples: Int,
         val destination: String,
-        val projectId: String
+        val projectId: String,
+        val shareUri: String
     )
 
     private data class SourceAudio(
@@ -194,7 +195,9 @@ object PackExporter {
         }
         onProgress("Verificação concluída · a guardar na biblioteca", 98)
         onProgress("A guardar em Downloads/Nexa/Sample Pack", 98)
-        val destination = copyZipToDownloads(context, internalZip, zipName)
+        val destinationResult = copyZipToDownloads(context, internalZip, zipName)
+        val destination = destinationResult.first
+        val shareUri = destinationResult.second
         val sampleRecords = persistentFolder.walkTopDown()
             .filter { it.isFile && it.parentFile != persistentFolder }
             .map { file ->
@@ -221,7 +224,7 @@ object PackExporter {
         )
         workRoot.deleteRecursively()
         onProgress("Concluído", 100)
-        return Result(zipName, total, destination, projectId)
+        return Result(zipName, total, destination, projectId, shareUri)
     }
 
     private fun buildReadme(
@@ -306,7 +309,7 @@ object PackExporter {
         }
     }
 
-    private fun copyZipToDownloads(context: Context, source: File, zipName: String): String {
+    private fun copyZipToDownloads(context: Context, source: File, zipName: String): Pair<String, String> {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, zipName)
@@ -322,7 +325,7 @@ object PackExporter {
                 } ?: throw IllegalStateException("Não foi possível gravar o ficheiro ZIP.")
                 val completed = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
                 context.contentResolver.update(uri, completed, null, null)
-                return "Downloads/Nexa/Sample Pack"
+                return "Downloads/Nexa/Sample Pack" to uri.toString()
             } catch (exception: Exception) {
                 context.contentResolver.delete(uri, null, null)
                 throw exception
@@ -333,6 +336,6 @@ object PackExporter {
         if (!destinationFolder.exists()) destinationFolder.mkdirs()
         val destination = File(destinationFolder, zipName)
         source.copyTo(destination, overwrite = true)
-        return destination.absolutePath
+        return destination.absolutePath to ""
     }
 }

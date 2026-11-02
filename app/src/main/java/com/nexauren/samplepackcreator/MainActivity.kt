@@ -54,6 +54,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -641,6 +642,9 @@ private fun PackCreatorScreen(
     var effectsExpanded by rememberSaveable { mutableStateOf(false) }
     var progressPercent by remember { mutableIntStateOf(0) }
     var progressStage by remember { mutableStateOf("À espera da análise") }
+    var createdProject by remember { mutableStateOf<SavedProject?>(null) }
+    var createdShareUri by remember { mutableStateOf<String?>(null) }
+    var createdDestination by remember { mutableStateOf<String?>(null) }
     val effectSettings = remember { mutableStateMapOf<String, EffectSetting>().apply { EffectCatalog.defaults().forEach { put(it.id, it) } } }
 
     val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -669,6 +673,16 @@ private fun PackCreatorScreen(
                 BitmapFactory.decodeStream(stream, null, options)?.asImageBitmap()
             }
         }.getOrNull() }
+    }
+
+    createdProject?.let { completed ->
+        PackSuccessScreen(
+            project = completed,
+            destination = createdDestination.orEmpty(),
+            shareUri = createdShareUri,
+            onBack = onBack
+        )
+        return
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 16.dp)) {
@@ -844,11 +858,34 @@ private fun PackCreatorScreen(
         }
         if (creating) {
             SectionCard("A criar o teu sample pack", "O estúdio está a processar, verificar e organizar os ficheiros.") {
-                Text(progressStage, color = TextMain, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Box(Modifier.fillMaxWidth().height(9.dp).clip(CircleShape).background(SurfaceTwo)) {
-                    Box(Modifier.fillMaxWidth((progressPercent / 100f).coerceIn(0f, 1f)).height(9.dp).clip(CircleShape).background(Brush.horizontalGradient(listOf(Accent, AccentBlue))))
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(122.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            progress = { (progressPercent / 100f).coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxSize(),
+                            color = Accent,
+                            trackColor = SurfaceTwo,
+                            strokeWidth = 9.dp
+                        )
+                        Text("$progressPercent%", color = TextMain, fontSize = 27.sp, fontWeight = FontWeight.ExtraBold)
+                    }
                 }
-                Text("$progressPercent% · Não feches o aplicativo durante o processamento.", color = TextMuted, fontSize = 10.sp)
+                Text(progressStage, color = TextMain, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text("A gerar samples, organizar categorias e verificar o ZIP. Não feches o aplicativo durante o processamento.", color = TextMuted, fontSize = 10.sp, lineHeight = 15.sp)
+                Row(
+                    Modifier.fillMaxWidth().height(28.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(25) { index ->
+                        Box(
+                            Modifier.padding(horizontal = 2.dp).width(3.dp)
+                                .height((7 + (index * 11 % 20)).dp)
+                                .clip(CircleShape)
+                                .background(if (index % 2 == 0) Accent else AccentBlue)
+                        )
+                    }
+                }
             }
         }
         if (reviewReady) Button(
@@ -906,6 +943,9 @@ private fun PackCreatorScreen(
                                 " amostra(s) exportada(s).\nLocalização: " + result.destination +
                                 "\nProjeto guardado na Biblioteca."
                             resultError = false
+                            createdShareUri = result.shareUri
+                            createdDestination = result.destination
+                            createdProject = StudioLibraryStore.projects(context).firstOrNull { it.id == result.projectId }
                         } catch (exception: Exception) {
                             resultMessage = "Não foi possível criar o pack: " + (exception.message ?: "erro desconhecido")
                             resultError = true
@@ -927,6 +967,115 @@ private fun PackCreatorScreen(
             }
         }
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun PackSuccessScreen(
+    project: SavedProject,
+    destination: String,
+    shareUri: String?,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val categoryCounts = project.samples.groupingBy { it.category }.eachCount().toSortedMap()
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.ArrowBack, contentDescription = "Voltar", tint = TextMain, modifier = Modifier.size(23.dp).clickable(onClick = onBack))
+            Spacer(Modifier.width(10.dp))
+            Text("Resultado do sample pack", color = TextMain, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        Card(
+            colors = CardDefaults.cardColors(containerColor = SurfaceOne),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Box(
+                Modifier.fillMaxWidth().background(
+                    Brush.linearGradient(listOf(Color(0xFF173D36), Color(0xFF171326), Color(0xFF25204B)))
+                ).padding(22.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF30D68B), modifier = Modifier.size(58.dp))
+                    Text("Pack pronto!", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(project.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text("${project.totalSamples} samples criados e verificados", color = Color(0xFF5FE2A4), fontSize = 12.sp)
+                    Text("ZIP · ${categoryCounts.size} categorias", color = TextMuted, fontSize = 10.sp)
+                }
+            }
+        }
+        Button(
+            onClick = {
+                val uri = shareUri?.let(Uri::parse)
+                if (uri != null) {
+                    val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/zip")
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    runCatching { context.startActivity(Intent.createChooser(intent, "Abrir sample pack")) }
+                        .onFailure { android.widget.Toast.makeText(context, "Não foi encontrada uma aplicação para abrir ZIP.", android.widget.Toast.LENGTH_LONG).show() }
+                }
+            },
+            enabled = !shareUri.isNullOrBlank(),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(15.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Accent)
+        ) {
+            Icon(Icons.Default.Folder, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Abrir ZIP")
+        }
+        OutlinedButton(
+            onClick = {
+                val uri = shareUri?.let(Uri::parse)
+                if (uri != null) {
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/zip"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    runCatching { context.startActivity(Intent.createChooser(send, "Partilhar sample pack")) }
+                        .onFailure { android.widget.Toast.makeText(context, "Não foi possível partilhar o ZIP.", android.widget.Toast.LENGTH_LONG).show() }
+                }
+            },
+            enabled = !shareUri.isNullOrBlank(),
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(15.dp)
+        ) {
+            Icon(Icons.Default.GraphicEq, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Partilhar sample pack")
+        }
+        SectionCard("Estrutura de pastas", "Organização criada dentro do ZIP.") {
+            Text(project.title + "/", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            categoryCounts.forEach { (category, count) ->
+                Row(Modifier.fillMaxWidth().padding(start = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Folder, contentDescription = null, tint = Color(0xFFFFC857), modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("$category/   ·   $count samples", color = TextMuted, fontSize = 11.sp)
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(start = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.AudioFile, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("README.txt  ·  informações do produto", color = TextMuted, fontSize = 11.sp)
+            }
+            if (project.samples.any { it.name.startsWith("cover.") }) {
+                Row(Modifier.fillMaxWidth().padding(start = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Palette, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("cover.*  ·  capa do produto", color = TextMuted, fontSize = 11.sp)
+                }
+            }
+        }
+        SectionCard("Ficheiro guardado", "O sample pack está disponível localmente no teu dispositivo.") {
+            Text(project.title + ".zip", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(destination, color = AccentBlue, fontSize = 11.sp)
+            Text("O projeto também foi guardado na Biblioteca do aplicativo.", color = TextMuted, fontSize = 10.sp)
+        }
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Voltar ao estúdio") }
     }
 }
 
