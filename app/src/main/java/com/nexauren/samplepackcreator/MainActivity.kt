@@ -291,9 +291,9 @@ private fun HomeScreen(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("SAMPLE PACK", color = AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                Text("Creator", color = TextMain, fontSize = 29.sp, fontWeight = FontWeight.ExtraBold)
-                Text("O teu estúdio privado de sound design", color = TextMuted, fontSize = 12.sp)
+                Text("CRIADOR DE PACOTES DE SAMPLES", color = AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                Text("CRIADOR", color = TextMain, fontSize = 29.sp, fontWeight = FontWeight.ExtraBold)
+                Text("O teu estúdio privado de criação sonora", color = TextMuted, fontSize = 12.sp)
             }
             Box(
                 Modifier.size(48.dp).clip(RoundedCornerShape(16.dp))
@@ -313,7 +313,7 @@ private fun HomeScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.AutoAwesome, tint = AccentBlue, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("SOUND DESIGN WORKSPACE", color = Color(0xFFD7D1FF), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                        Text("ESTÚDIO DE CRIAÇÃO SONORA", color = Color(0xFFD7D1FF), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                     }
                     Text("Cria sons.\nTransforma ideias.", color = Color.White, fontSize = 28.sp, lineHeight = 33.sp, fontWeight = FontWeight.Bold)
                     Text("Sintetiza samples do zero, processa áudio importado e organiza produtos prontos para exportar.", color = Color(0xFFD1CBE4), fontSize = 13.sp, lineHeight = 19.sp)
@@ -325,7 +325,7 @@ private fun HomeScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Criar novo Sample Pack", fontWeight = FontWeight.Bold)
+                        Text("Criar novo pacote de samples", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -334,7 +334,7 @@ private fun HomeScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             StatCard("Categorias", categoryCount.toString(), Icons.Default.Category, Modifier.weight(1f))
             StatCard("Projetos", projectCount.toString(), Icons.Default.Folder, Modifier.weight(1f))
-            StatCard("Motor", "Offline", Icons.Default.Lock, Modifier.weight(1f))
+            StatCard("Motor", "Local", Icons.Default.Lock, Modifier.weight(1f))
         }
 
         ScreenHeader("Ferramentas do estúdio", "Criação e organização")
@@ -513,7 +513,7 @@ private fun SynthesisScreen(categories: List<SampleCategory>, activePreview: Str
                     OutlinedTextField(value = duration, onValueChange = { duration = it.filter(Char::isDigit).take(4) }, label = { Text("Duração (ms)") }, singleLine = true, modifier = Modifier.weight(1f))
                 }
                 Divider(color = Color(0xFF332B48))
-                Text("3. Controlos de sound design", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("3. Controlos de criação sonora", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Text("Afinação: " + pitchSemitones.toInt() + " semitons", color = TextMuted, fontSize = 11.sp)
                 Slider(value = pitchSemitones, onValueChange = { pitchSemitones = it }, valueRange = -12f..12f, steps = 23)
                 Text("Decaimento: " + "%.2f".format(Locale.US, decay) + "x", color = TextMuted, fontSize = 11.sp)
@@ -568,7 +568,7 @@ private fun SynthesisScreen(categories: List<SampleCategory>, activePreview: Str
                                         }
                                     }
                                     generated = StudioLibraryStore.generatedSamples(context)
-                                    message = newFiles.size.toString() + " samples criados e guardados na biblioteca local."
+                                    message = newFiles.size.toString() + " amostras criadas e guardadas na biblioteca local."
                                 } catch (exception: Exception) {
                                     message = "Falha na síntese: " + (exception.message ?: "erro desconhecido")
                                 } finally { busy = false }
@@ -582,13 +582,13 @@ private fun SynthesisScreen(categories: List<SampleCategory>, activePreview: Str
                 ) {
                     Icon(Icons.Default.AutoAwesome, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text(if (busy) "A sintetizar áudio…" else "Gerar samples do zero", fontWeight = FontWeight.Bold)
+                    Text(if (busy) "A sintetizar áudio…" else "Gerar amostras do zero", fontWeight = FontWeight.Bold)
                 }
                 message?.let { Text(it, color = if (it.startsWith("Falha")) Color(0xFFFF8495) else AccentBlue, fontSize = 12.sp) }
             }
         }
 
-        ScreenHeader("Samples sintetizados", generated.size.toString() + " ficheiro(s) guardado(s)")
+        ScreenHeader("Amostras sintetizadas", generated.size.toString() + " ficheiro(s) guardado(s)")
         if (generated.isEmpty()) {
             EmptyCard("Ainda não existem samples sintetizados.", "Escolhe um tipo de som e gera a tua primeira coleção.")
         } else {
@@ -649,7 +649,7 @@ private fun PackCreatorScreen(
             Icon(Icons.Default.ArrowBack, contentDescription = "Voltar", tint = TextMain, modifier = Modifier.size(24.dp).clickable(onClick = onBack))
             Spacer(Modifier.width(12.dp))
             Column {
-                Text("Novo Sample Pack", color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text("Novo pacote de samples", color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text("Importa, sintetiza e organiza áudio", color = TextMuted, fontSize = 11.sp)
             }
         }
@@ -696,7 +696,7 @@ private fun PackCreatorScreen(
                     }
                 }
                 if (availableSynth.isNotEmpty()) {
-                    Text("Sintetizados disponíveis", color = AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("Amostras sintetizadas disponíveis", color = AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     availableSynth.take(8).forEach { sample ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(checked = selectedGeneratedIds[sample.id] == true, onCheckedChange = { selectedGeneratedIds[sample.id] = it })
@@ -712,7 +712,7 @@ private fun PackCreatorScreen(
                 OutlinedTextField(
                     value = quantities[category.id] ?: "10",
                     onValueChange = { value -> quantities[category.id] = value.filter(Char::isDigit).take(3) },
-                    label = { Text("Quantidade pretendida de samples") },
+                    label = { Text("Quantidade de amostras desejada") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -774,7 +774,7 @@ private fun PackCreatorScreen(
                                 )
                             }
                             resultMessage = "Pack criado: " + result.fileName + "\n" + result.totalSamples +
-                                " sample(s) exportado(s).\nLocalização: " + result.destination +
+                                " amostra(s) exportada(s).\nLocalização: " + result.destination +
                                 "\nProjeto guardado na Biblioteca."
                             resultError = false
                         } catch (exception: Exception) {
@@ -858,7 +858,7 @@ private fun LibraryScreen(activePreview: String?, isPlaying: Boolean, onPreview:
             }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatCard("Samples", project.totalSamples.toString(), Icons.Default.AudioFile, Modifier.weight(1f))
+                StatCard("Amostras", project.totalSamples.toString(), Icons.Default.AudioFile, Modifier.weight(1f))
                 StatCard("Categorias", project.samples.map { it.category }.distinct().size.toString(), Icons.Default.Category, Modifier.weight(1f))
             }
             Spacer(Modifier.height(12.dp))
@@ -908,7 +908,7 @@ private fun LibraryScreen(activePreview: String?, isPlaying: Boolean, onPreview:
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(project.title, color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Text(project.genre + " · " + project.totalSamples + " samples", color = TextMuted, fontSize = 10.sp)
+                                    Text(project.genre + " · " + project.totalSamples + " amostras", color = TextMuted, fontSize = 10.sp)
                                     Text(SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(project.createdAt)), color = TextMuted, fontSize = 9.sp)
                                 }
                                 Icon(Icons.Default.PlayArrow, contentDescription = "Abrir projeto", tint = AccentBlue)
@@ -925,7 +925,7 @@ private fun LibraryScreen(activePreview: String?, isPlaying: Boolean, onPreview:
             onDismissRequest = { deleteTarget = null },
             containerColor = SurfaceOne,
             title = { Text("Eliminar projeto?") },
-            text = { Text("O projeto, o ZIP interno e os samples guardados na biblioteca serão eliminados. O ZIP já exportado para Downloads não será apagado.") },
+            text = { Text("O projeto, o ZIP interno e as amostras guardadas na biblioteca serão eliminados. O ZIP já exportado para Downloads não será apagado.") },
             confirmButton = {
                 TextButton(onClick = {
                     StudioLibraryStore.deleteProject(context, project)
@@ -948,7 +948,7 @@ private fun SettingsScreen() {
         SettingRow(Icons.Default.Tune, "Processamento", "WAV PCM, com descodificação através dos codecs Android disponíveis.")
         SettingRow(Icons.Default.GraphicEq, "Síntese", "Osciladores, envelopes, ruído, variação de pitch e modelação.")
         SettingRow(Icons.Default.Folder, "Biblioteca", "Projetos, ficheiros de áudio e ZIP guardados localmente.")
-        Text("Sample Pack Creator · versão 1.1.0", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 10.dp))
+        Text("Criador de Sample Packs · versão 1.2.0", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 10.dp))
     }
 }
 
