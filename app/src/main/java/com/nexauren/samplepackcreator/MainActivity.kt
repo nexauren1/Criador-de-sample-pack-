@@ -560,7 +560,7 @@ private fun SynthesisScreen(categories: List<SampleCategory>, activePreview: Str
                                                     soundType = stableType,
                                                     durationMs = milliseconds,
                                                     variation = index,
-                                                    seed = (stableType.lowercase(Locale.ROOT).hashCode().toLong() shl 32) xor (index.toLong() * 0x9E3779B97F4A7C15UL.toLong()) xor 0x53414D504C45L,
+                                                    seed = System.nanoTime() xor (index.toLong() * 0x9E3779B97F4A7C15UL.toLong()) xor stableType.lowercase(Locale.ROOT).hashCode().toLong(),
                                                     pitchSemitones = stablePitch,
                                                     decay = stableDecay,
                                                     brightness = stableBrightness,
