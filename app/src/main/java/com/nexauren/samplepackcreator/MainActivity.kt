@@ -1,6 +1,7 @@
 package com.nexauren.samplepackcreator
 
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -79,7 +81,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -632,6 +636,12 @@ private fun PackCreatorScreen(
     var creating by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var resultError by remember { mutableStateOf(false) }
+    var coverUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var reviewReady by rememberSaveable { mutableStateOf(false) }
+    var effectsExpanded by rememberSaveable { mutableStateOf(false) }
+    var progressPercent by remember { mutableIntStateOf(0) }
+    var progressStage by remember { mutableStateOf("À espera da análise") }
+    val effectSettings = remember { mutableStateMapOf<String, EffectSetting>().apply { EffectCatalog.defaults().forEach { put(it.id, it) } } }
 
     val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         val categoryId = pendingCategoryId
@@ -640,8 +650,25 @@ private fun PackCreatorScreen(
                 try { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
                 catch (_: Exception) { /* Provider may not expose persistable grants. */ }
             }
-            selectedFiles[categoryId] = uris
+            selectedFiles[categoryId] = (selectedFiles[categoryId].orEmpty() + uris).distinctBy { it.toString() }
+            reviewReady = false
         }
+    }
+    val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            catch (_: Exception) { /* Some image providers expose a temporary read grant only. */ }
+            coverUri = uri.toString()
+            reviewReady = false
+        }
+    }
+    val coverBitmap = remember(coverUri) {
+        coverUri?.let { raw -> runCatching {
+            context.contentResolver.openInputStream(Uri.parse(raw))?.use { stream ->
+                val options = BitmapFactory.Options().apply { inSampleSize = 4 }
+                BitmapFactory.decodeStream(stream, null, options)?.asImageBitmap()
+            }
+        }.getOrNull() }
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 16.dp)) {
@@ -657,6 +684,22 @@ private fun PackCreatorScreen(
         SectionCard("Informações do produto", "A interface fica em português; os nomes exportados ficam em inglês.") {
             OutlinedTextField(value = packName, onValueChange = { packName = it }, label = { Text("Nome do pack (em inglês)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = genre, onValueChange = { genre = it }, label = { Text("Género musical") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (coverBitmap != null) {
+                    Image(bitmap = coverBitmap, contentDescription = "Capa do sample pack", modifier = Modifier.size(76.dp).clip(RoundedCornerShape(13.dp)), contentScale = ContentScale.Crop)
+                } else {
+                    Box(Modifier.size(76.dp).clip(RoundedCornerShape(13.dp)).background(SurfaceTwo), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Palette, contentDescription = null, tint = Accent, modifier = Modifier.size(30.dp))
+                    }
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(if (coverUri == null) "Capa do produto" else "Capa selecionada", color = TextMain, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                    Text("A imagem será incluída no ZIP como cover.", color = TextMuted, fontSize = 10.sp)
+                    OutlinedButton(onClick = { coverPicker.launch(arrayOf("image/*")) }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)) {
+                        Text(if (coverUri == null) "Carregar capa" else "Alterar capa", fontSize = 10.sp)
+                    }
+                }
+            }
         }
         Spacer(Modifier.height(14.dp))
         SectionCard("Adicionar áudio", "Seleciona ficheiros de origem ou reutiliza os samples sintetizados.") {
@@ -712,7 +755,7 @@ private fun PackCreatorScreen(
                 OutlinedTextField(
                     value = quantities[category.id] ?: "10",
                     onValueChange = { value -> quantities[category.id] = value.filter(Char::isDigit).take(3) },
-                    label = { Text("Quantidade de amostras desejada") },
+                    label = { Text("Quantidade final nesta categoria (1–250)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -734,8 +777,81 @@ private fun PackCreatorScreen(
                 Text("O Android tenta descodificar WAV, MP3, AAC/M4A, OGG, FLAC e outros formatos conforme os codecs instalados no dispositivo.", color = TextMuted, fontSize = 11.sp, lineHeight = 16.sp)
             }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(14.dp))
+        SectionCard("Efeitos de áudio", "64 efeitos individuais. Ativa apenas os que queres incluir e regula a intensidade de cada um.") {
+            val enabledEffectCount = effectSettings.values.count { it.enabled && it.intensity > 0f }
+            Text("$enabledEffectCount efeito(s) ativo(s) de ${EffectCatalog.all.size}", color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            OutlinedButton(onClick = { effectsExpanded = !effectsExpanded }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (effectsExpanded) "Ocultar controlos dos efeitos" else "Abrir os 64 efeitos e intensidades")
+            }
+            if (effectsExpanded) {
+                EffectCatalog.all.groupBy { it.group }.forEach { (group, definitions) ->
+                    Text(group.uppercase(Locale.ROOT), color = AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    definitions.forEach { definition ->
+                        val setting = effectSettings[definition.id] ?: EffectSetting(definition.id)
+                        Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = setting.enabled, onCheckedChange = { checked -> effectSettings[definition.id] = setting.copy(enabled = checked); reviewReady = false })
+                                Column(Modifier.weight(1f)) {
+                                    Text(definition.name, color = TextMain, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(definition.description, color = TextMuted, fontSize = 9.sp)
+                                }
+                                Text(if (setting.enabled) "${setting.intensity.toInt()}%" else "OFF", color = if (setting.enabled) AccentBlue else TextMuted, fontSize = 10.sp)
+                            }
+                            if (setting.enabled) {
+                                Slider(value = setting.intensity, onValueChange = { value -> effectSettings[definition.id] = setting.copy(intensity = value); reviewReady = false }, valueRange = 0f..100f)
+                            }
+                        }
+                    }
+                    Divider(color = Color(0xFF332B48))
+                }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        val selectedGeneratedNow = selectedGeneratedIds.filterValues { it }.keys
+        val plannedCategoryCounts = categories.mapNotNull { category ->
+            val sourceCount = selectedFiles[category.id].orEmpty().size + generated.count { it.categoryId == category.id && it.id in selectedGeneratedNow }
+            val targetCount = quantities[category.id]?.toIntOrNull() ?: 10
+            if (sourceCount > 0) category.name to targetCount.coerceIn(1, 250) else null
+        }
+        val plannedSamples = plannedCategoryCounts.sumOf { it.second }
+        val activeEffects = EffectCatalog.all.mapNotNull { definition ->
+            effectSettings[definition.id]?.takeIf { it.enabled && it.intensity > 0f }
+        }
         Button(
+            onClick = {
+                val sourceCount = selectedFiles.values.sumOf { it.size } + selectedGeneratedNow.size
+                val invalidQuantity = plannedCategoryCounts.any { it.second !in 1..250 }
+                when {
+                    packName.isBlank() -> { resultMessage = "Indica o nome do pack."; resultError = true; reviewReady = false }
+                    sourceCount == 0 -> { resultMessage = "Importa áudio ou seleciona samples sintetizados."; resultError = true; reviewReady = false }
+                    invalidQuantity -> { resultMessage = "Revê as quantidades: cada categoria deve ter entre 1 e 250 samples."; resultError = true; reviewReady = false }
+                    else -> { reviewReady = true; resultMessage = null; resultError = false; progressStage = "Análise concluída · pronto para criar"; progressPercent = 0 }
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(15.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = SurfaceTwo)
+        ) { Text("Analisar e rever o pacote", fontWeight = FontWeight.Bold) }
+        if (reviewReady) {
+            SectionCard("Revisão antes da criação", "Confirma a estrutura, as quantidades e o processamento.") {
+                Text("Samples pedidos: $plannedSamples", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                plannedCategoryCounts.forEach { (name, count) -> Text("$name  ·  $count samples", color = TextMuted, fontSize = 11.sp) }
+                Text("Efeitos ativos: ${activeEffects.size} / ${EffectCatalog.all.size}", color = AccentBlue, fontSize = 11.sp)
+                Text("Capa: ${if (coverUri == null) "não selecionada" else "incluída"}", color = TextMuted, fontSize = 11.sp)
+                Text("A criação inclui análise dos ficheiros, geração de variações, verificação e compressão.", color = TextMuted, fontSize = 10.sp)
+            }
+        }
+        if (creating) {
+            SectionCard("A criar o teu sample pack", "O estúdio está a processar, verificar e organizar os ficheiros.") {
+                Text(progressStage, color = TextMain, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Box(Modifier.fillMaxWidth().height(9.dp).clip(CircleShape).background(SurfaceTwo)) {
+                    Box(Modifier.fillMaxWidth((progressPercent / 100f).coerceIn(0f, 1f)).height(9.dp).clip(CircleShape).background(Brush.horizontalGradient(listOf(Accent, AccentBlue))))
+                }
+                Text("$progressPercent% · Não feches o aplicativo durante o processamento.", color = TextMuted, fontSize = 10.sp)
+            }
+        }
+        if (reviewReady) Button(
             onClick = {
                 val selectedGenerated = selectedGeneratedIds.filterValues { it }.keys
                 val chosen = selectedFiles.values.sumOf { it.size } + selectedGenerated.size
@@ -747,6 +863,8 @@ private fun PackCreatorScreen(
                     resultError = true
                 } else {
                     creating = true
+                    progressPercent = 1
+                    progressStage = "A preparar o motor de áudio…"
                     resultMessage = null
                     val fileMap = selectedFiles.toMap()
                     val generatedMap = categories.associate { category ->
@@ -759,6 +877,8 @@ private fun PackCreatorScreen(
                     val stablePackName = packName
                     val stableGenre = genre
                     val categorySnapshot = categories.toList()
+                    val effectSnapshot = activeEffects.toList()
+                    val stableCoverUri = coverUri?.let { Uri.parse(it) }
                     scope.launch {
                         try {
                             val result = withContext(Dispatchers.IO) {
@@ -770,7 +890,12 @@ private fun PackCreatorScreen(
                                     selectedFiles = fileMap,
                                     generatedFiles = generatedMap,
                                     quantities = quantityMap,
-                                    samplePrefixes = prefixMap
+                                    samplePrefixes = prefixMap,
+                                    effects = effectSnapshot,
+                                    coverUri = stableCoverUri,
+                                    onProgress = { stage, percent ->
+                                        scope.launch { progressStage = stage; progressPercent = percent }
+                                    }
                                 )
                             }
                             resultMessage = "Pack criado: " + result.fileName + "\n" + result.totalSamples +
@@ -789,7 +914,7 @@ private fun PackCreatorScreen(
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Accent)
         ) {
-            Text(if (creating) "A processar e exportar…" else "Criar e guardar projeto", fontWeight = FontWeight.Bold)
+            Text(if (creating) "A criar e verificar…" else "Criar, verificar e exportar ZIP", fontWeight = FontWeight.Bold)
         }
         resultMessage?.let { message ->
             Spacer(Modifier.height(12.dp))
