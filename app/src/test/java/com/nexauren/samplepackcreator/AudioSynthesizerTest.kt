@@ -116,6 +116,36 @@ class AudioSynthesizerTest {
         }
     }
 
+
+    @Test
+    fun reverseAndReverseGateChainKeepsUsefulClapLevel() {
+        val source = AudioSynthesizer.generate("Clap", durationMs = 250, seed = 9081L)
+        val processed = WavProcessor.process(
+            source,
+            2,
+            listOf(
+                EffectSetting("reverse", enabled = true, intensity = 55f),
+                EffectSetting("reverse_gate", enabled = true, intensity = 55f)
+            )
+        )
+        assertNotNull(processed)
+        val originalPeak = pcmPeak(source)
+        val processedPeak = pcmPeak(processed!!)
+        assertTrue("Reverse chain crushed the sample: original=$originalPeak processed=$processedPeak", processedPeak > originalPeak * 0.55f)
+        assertTrue("Reverse chain clipped the sample: $processedPeak", processedPeak <= 0.98f)
+    }
+
+    private fun pcmPeak(wav: ByteArray): Float {
+        var peak = 0f
+        var offset = 44
+        while (offset + 1 < wav.size) {
+            val value = ((wav[offset].toInt() and 0xff) or (wav[offset + 1].toInt() shl 8)).toShort().toInt()
+            peak = maxOf(peak, kotlin.math.abs(value / 32768f))
+            offset += 2
+        }
+        return peak
+    }
+
     private fun unsignedShort(bytes: ByteArray, offset: Int): Int =
         (bytes[offset].toInt() and 0xff) or ((bytes[offset + 1].toInt() and 0xff) shl 8)
 
