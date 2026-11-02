@@ -14,9 +14,18 @@ import kotlin.math.tanh
 object WavProcessor {
     private data class WavInfo(val channels: Int, val sampleRate: Int, val dataOffset: Int, val dataLength: Int)
 
-    fun effectName(index: Int): String {
-        val name = EffectCatalog.all[index.mod(EffectCatalog.all.size)].name.replace(Regex("[^A-Za-z0-9]+"), "")
-        return if (index >= EffectCatalog.all.size) name + "_Alt" + (index / EffectCatalog.all.size + 1) else name
+    fun effectName(index: Int, effects: List<EffectSetting> = emptyList()): String {
+        val active = effects.filter { it.enabled && it.intensity > 0f }
+        val selected = if (active.isNotEmpty()) {
+            val labels = active.take(2).mapNotNull { EffectCatalog.get(it.id)?.name }
+                .map { it.replace(Regex("[^A-Za-z0-9]+"), "") }
+            (labels + if (active.size > 2) listOf("Chain") else emptyList()).joinToString("_")
+        } else {
+            EffectCatalog.all[index.mod(EffectCatalog.all.size)].name.replace(Regex("[^A-Za-z0-9]+"), "")
+        }
+        val variationSuffix = if (active.isEmpty() && index >= EffectCatalog.all.size)
+            "_Alt" + (index / EffectCatalog.all.size + 1) else ""
+        return (selected.ifBlank { "Processed" } + variationSuffix).take(42)
     }
 
     fun process(input: ByteArray, variationIndex: Int, effects: List<EffectSetting> = emptyList()): ByteArray? {

@@ -117,7 +117,7 @@ object PackExporter {
                         produced++
                         producedInPass++
                         val processedName = processed != null
-                        val label = if (processedName) WavProcessor.effectName(variationIndex) else "Original"
+                        val label = if (processedName) WavProcessor.effectName(variationIndex, effects) else "Original"
                         val extension = if (processedName) "wav" else source.extension.ifBlank { "audio" }
                         val outputName = samplePrefix + "_" + produced.toString().padStart(3, '0') +
                             "_" + label + "." + extension
