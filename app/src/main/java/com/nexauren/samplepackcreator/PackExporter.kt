@@ -93,7 +93,7 @@ object PackExporter {
                 }
             }
 
-            if (sources.isEmpty()) return@forEach
+            if (sources.isEmpty()) return@forEachIndexed
 
             val categoryName = safeName(category.name).ifBlank { "Samples" }
             val categoryFolder = File(packFolder, categoryName)
@@ -168,11 +168,8 @@ object PackExporter {
         val zipName = safePackName + ".zip"
         val internalZip = File(projectRoot, zipName)
         zipFolder(persistentFolder, internalZip)
-        onProgress("A verificar o ZIP e a guardar na pasta Nexa", 94)
-        val destination = copyZipToDownloads(context, internalZip, zipName)
-
-        onProgress("A analisar a qualidade do conteúdo", 96)
-        val audioFiles = persistentFolder.walkTopDown().filter { it.isFile && it.extension.lowercase(Locale.ROOT) in setOf("wav","mp3","m4a","aac","ogg","flac","aiff","aif") }.toList()
+        onProgress("A analisar a qualidade do conteúdo e o ZIP", 94)
+        val audioFiles = persistentFolder.walkTopDown().filter { it.isFile && it.parentFile != persistentFolder }.toList()
         if (audioFiles.size != total) throw IllegalStateException("A verificação encontrou ${audioFiles.size} samples de áudio, mas o projeto indica $total.")
         val brokenWav = audioFiles.filter { file -> file.extension.equals("wav", true) && (file.length() < 44L || FileInputStream(file).use { input ->
             val header = ByteArray(12); input.read(header) == 12 && String(header, 0, 4, Charsets.US_ASCII) != "RIFF"
@@ -192,8 +189,10 @@ object PackExporter {
             if (verified == 0) throw IllegalStateException("O ZIP final está vazio.")
         }
         onProgress("Verificação concluída · a guardar na biblioteca", 98)
+        onProgress("A guardar em Downloads/Nexa/Sample Pack", 98)
+        val destination = copyZipToDownloads(context, internalZip, zipName)
         val sampleRecords = persistentFolder.walkTopDown()
-            .filter { it.isFile && it.extension.lowercase(Locale.ROOT) in setOf("wav","mp3","m4a","aac","ogg","flac","aiff","aif") }
+            .filter { it.isFile && it.parentFile != persistentFolder }
             .map { file ->
                 ProjectSample(
                     name = file.name,

@@ -27,10 +27,15 @@ A private Android sound-design studio for generating, processing, previewing and
 - Import and preview through the Android document picker.
 - Local decoding through Android MediaExtractor/MediaCodec when a compatible device codec is available (MP3, AAC/M4A, OGG, FLAC, WAV and other device-supported formats).
 - Normalization of decoded audio to 16-bit PCM WAV for processing.
-- Eight processing families: Punchy, Deep, Distorted, Reverse, Echo, LoFi, Bright and Warm, with changing parameters on repeated cycles.
+- 65 individual offline effects with independent enable/disable and intensity controls, including reverse, reverb, echo, delay, ping-pong, stutter, repeater, chorus, flanger, phaser, robot, ring modulation, chord layers, pitch, dynamics and texture effects.
+- Effect chains are rendered offline, and each generated variation receives a distinct variation pass.
+- Per-category target quantities (1–250) are processed independently, for example 55 Kick and 45 Clap samples.
+- A preflight review screen checks category targets, selected sources, enabled effects and cover art before creation.
+- Processing progress includes audio conversion, rendering, structural review, ZIP integrity checks and final save.
+- Optional cover image embedded in the final pack as cover.jpg/png/webp.
 - Independent sample quantity and English filename prefix for every category.
 - Reuse synthesized files in a new pack.
-- ZIP export into Downloads/Sample Pack Creator.
+- ZIP export into Downloads/Nexa/Sample Pack (ZIP is used for broad compatibility; 7z is not currently generated).
 - English README with pack contents, counts, format notes and usage reminders.
 - Persistent project library with sample-file preview and local project deletion.
 
@@ -44,7 +49,7 @@ A private Android sound-design studio for generating, processing, previewing and
 - Compose BOM 2026.08.00.
 - AndroidX Media3 ExoPlayer 1.11.1.
 
-Open the repository in a compatible Android Studio version and run the app configuration. The GitHub Actions workflow runs unit tests and builds both debug and optimized release APKs. The optimized personal release APK is signed with the standard debug key for device testing only; configure a private release key before distributing through any app store.
+Open the repository in a compatible Android Studio version and run the app configuration. The GitHub Actions workflow runs unit tests and builds both debug and optimized release APKs. The current personal release APK uses the debug signing key for device testing. Before store publishing, configure a permanent private release keystore using GitHub Actions secrets; never commit keystore files or passwords to the repository.
 
 ## Audio compatibility note
 

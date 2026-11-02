@@ -900,6 +900,8 @@ private fun PackCreatorScreen(
                             }
                             progressStage = "Verificação final concluída"
                             progressPercent = 100
+                            progressStage = "Verificação final concluída"
+                            progressPercent = 100
                             resultMessage = "Pack criado: " + result.fileName + "\n" + result.totalSamples +
                                 " amostra(s) exportada(s).\nLocalização: " + result.destination +
                                 "\nProjeto guardado na Biblioteca."

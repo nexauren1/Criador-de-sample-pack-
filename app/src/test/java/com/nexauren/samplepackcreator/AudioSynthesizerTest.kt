@@ -78,6 +78,19 @@ class AudioSynthesizerTest {
         }
     }
 
+
+    @Test
+    fun allAvailableEffectsAreIndividuallyConfigurableAndRenderAudio() {
+        val original = AudioSynthesizer.generate("Kick", durationMs = 180, seed = 174L)
+        assertTrue(EffectCatalog.all.size > 50)
+        EffectCatalog.all.forEachIndexed { index, effect ->
+            val rendered = WavProcessor.process(original, index, listOf(EffectSetting(effect.id, enabled = true, intensity = 65f)))
+            assertNotNull("Effect failed: ${effect.name}", rendered)
+            assertTrue("Effect did not produce audio: ${effect.name}", rendered!!.size > 44)
+            assertEquals("RIFF", String(rendered.copyOfRange(0, 4), Charsets.US_ASCII))
+        }
+    }
+
     private fun unsignedShort(bytes: ByteArray, offset: Int): Int =
         (bytes[offset].toInt() and 0xff) or ((bytes[offset + 1].toInt() and 0xff) shl 8)
 
