@@ -124,6 +124,7 @@ object PackExporter {
                     }
                 }
                 if (producedInPass == 0) break
+                onProgress("A processar ${category.name}: $produced / $requested", 20 + ((categoryIndex * 52 + (produced * 52 / requested.coerceAtLeast(1))) / categories.size.coerceAtLeast(1)))
                 pass++
             }
 
@@ -170,8 +171,29 @@ object PackExporter {
         onProgress("A verificar o ZIP e a guardar na pasta Nexa", 94)
         val destination = copyZipToDownloads(context, internalZip, zipName)
 
+        onProgress("A analisar a qualidade do conteúdo", 96)
+        val audioFiles = persistentFolder.walkTopDown().filter { it.isFile && it.extension.lowercase(Locale.ROOT) in setOf("wav","mp3","m4a","aac","ogg","flac","aiff","aif") }.toList()
+        if (audioFiles.size != total) throw IllegalStateException("A verificação encontrou ${audioFiles.size} samples de áudio, mas o projeto indica $total.")
+        val brokenWav = audioFiles.filter { file -> file.extension.equals("wav", true) && (file.length() < 44L || FileInputStream(file).use { input ->
+            val header = ByteArray(12); input.read(header) == 12 && String(header, 0, 4, Charsets.US_ASCII) != "RIFF"
+        }) }
+        if (brokenWav.isNotEmpty()) throw IllegalStateException("A verificação detetou ficheiros WAV inválidos: ${brokenWav.joinToString { it.name }}")
+        java.util.zip.ZipFile(internalZip).use { zip ->
+            val entries = zip.entries()
+            var verified = 0
+            while (entries.hasMoreElements()) {
+                val entry = entries.nextElement()
+                if (!entry.isDirectory) zip.getInputStream(entry).use { input ->
+                    val buffer = ByteArray(16 * 1024)
+                    while (input.read(buffer) >= 0) { }
+                }
+                verified++
+            }
+            if (verified == 0) throw IllegalStateException("O ZIP final está vazio.")
+        }
+        onProgress("Verificação concluída · a guardar na biblioteca", 98)
         val sampleRecords = persistentFolder.walkTopDown()
-            .filter { it.isFile && it.name != "README.txt" }
+            .filter { it.isFile && it.extension.lowercase(Locale.ROOT) in setOf("wav","mp3","m4a","aac","ogg","flac","aiff","aif") }
             .map { file ->
                 ProjectSample(
                     name = file.name,
@@ -297,7 +319,7 @@ object PackExporter {
                 } ?: throw IllegalStateException("Não foi possível gravar o ficheiro ZIP.")
                 val completed = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
                 context.contentResolver.update(uri, completed, null, null)
-                return "Downloads/Sample Pack Creator"
+                return "Downloads/Nexa/Sample Pack"
             } catch (exception: Exception) {
                 context.contentResolver.delete(uri, null, null)
                 throw exception

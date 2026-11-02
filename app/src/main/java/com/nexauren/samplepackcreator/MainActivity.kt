@@ -682,8 +682,8 @@ private fun PackCreatorScreen(
         }
         Spacer(Modifier.height(18.dp))
         SectionCard("Informações do produto", "A interface fica em português; os nomes exportados ficam em inglês.") {
-            OutlinedTextField(value = packName, onValueChange = { packName = it }, label = { Text("Nome do pack (em inglês)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = genre, onValueChange = { genre = it }, label = { Text("Género musical") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = packName, onValueChange = { packName = it; reviewReady = false }, label = { Text("Nome do pack (em inglês)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = genre, onValueChange = { genre = it; reviewReady = false }, label = { Text("Género musical") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (coverBitmap != null) {
                     Image(bitmap = coverBitmap, contentDescription = "Capa do sample pack", modifier = Modifier.size(76.dp).clip(RoundedCornerShape(13.dp)), contentScale = ContentScale.Crop)
@@ -702,7 +702,7 @@ private fun PackCreatorScreen(
             }
         }
         Spacer(Modifier.height(14.dp))
-        SectionCard("Adicionar áudio", "Seleciona ficheiros de origem ou reutiliza os samples sintetizados.") {
+        SectionCard("Adicionar áudio", "Importa vários ficheiros por categoria. Podes adicionar mais ficheiros sem perder os anteriores.") {
             categories.forEach { category ->
                 val files = selectedFiles[category.id] ?: emptyList()
                 val availableSynth = generated.filter { it.categoryId == category.id }
@@ -742,7 +742,7 @@ private fun PackCreatorScreen(
                     Text("Amostras sintetizadas disponíveis", color = AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     availableSynth.take(8).forEach { sample ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = selectedGeneratedIds[sample.id] == true, onCheckedChange = { selectedGeneratedIds[sample.id] = it })
+                            Checkbox(checked = selectedGeneratedIds[sample.id] == true, onCheckedChange = { selectedGeneratedIds[sample.id] = it; reviewReady = false })
                             Column(Modifier.weight(1f)) {
                                 Text(sample.name, color = TextMain, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(sample.soundType, color = TextMuted, fontSize = 9.sp)
@@ -754,14 +754,14 @@ private fun PackCreatorScreen(
                 }
                 OutlinedTextField(
                     value = quantities[category.id] ?: "10",
-                    onValueChange = { value -> quantities[category.id] = value.filter(Char::isDigit).take(3) },
+                    onValueChange = { value -> quantities[category.id] = value.filter(Char::isDigit).take(3); reviewReady = false },
                     label = { Text("Quantidade final nesta categoria (1–250)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = filePrefixes[category.id] ?: category.name,
-                    onValueChange = { filePrefixes[category.id] = it },
+                    onValueChange = { filePrefixes[category.id] = it; reviewReady = false },
                     label = { Text("Nome base dos ficheiros (inglês)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -811,8 +811,8 @@ private fun PackCreatorScreen(
         val selectedGeneratedNow = selectedGeneratedIds.filterValues { it }.keys
         val plannedCategoryCounts = categories.mapNotNull { category ->
             val sourceCount = selectedFiles[category.id].orEmpty().size + generated.count { it.categoryId == category.id && it.id in selectedGeneratedNow }
-            val targetCount = quantities[category.id]?.toIntOrNull() ?: 10
-            if (sourceCount > 0) category.name to targetCount.coerceIn(1, 250) else null
+            val targetCount = quantities[category.id]?.toIntOrNull() ?: 0
+            if (sourceCount > 0) category.name to targetCount else null
         }
         val plannedSamples = plannedCategoryCounts.sumOf { it.second }
         val activeEffects = EffectCatalog.all.mapNotNull { definition ->
@@ -898,6 +898,8 @@ private fun PackCreatorScreen(
                                     }
                                 )
                             }
+                            progressStage = "Verificação final concluída"
+                            progressPercent = 100
                             resultMessage = "Pack criado: " + result.fileName + "\n" + result.totalSamples +
                                 " amostra(s) exportada(s).\nLocalização: " + result.destination +
                                 "\nProjeto guardado na Biblioteca."
