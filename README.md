@@ -67,4 +67,4 @@ For stable install-over-update behavior and Play Store submission, create one pr
 - SIGNING_KEY_PASSWORD
 
 The workflow uses the permanent key only when all four are configured. Never place the keystore, passwords, or encoded keystore in Git commits. The repository is currently public; the GitHub Actions secret store is the correct location for signing credentials.
-\n## Latest build\n\nVersion 1.3.1: review screen, circular render progress, cover image, independent quantity validation, 65 controllable audio effects, and ZIP integrity verification.\n
+\n## Latest build\n\nVersion 1.4.0: redesigned musical one-shot synthesis for Kick, Snare, Clap, Hi-Hat, Bass, Percussion, Synth, FX, Pluck and Tom; clean no-effect output; safer Reverse/Reverse Gate; DC-correct final fade; and preset output-level tests.\n

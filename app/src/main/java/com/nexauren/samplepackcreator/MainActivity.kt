@@ -1230,7 +1230,7 @@ private fun SettingsScreen() {
         SettingRow(Icons.Default.Tune, "Processamento", "WAV PCM, com descodificação através dos codecs Android disponíveis.")
         SettingRow(Icons.Default.GraphicEq, "Síntese", "Osciladores, envelopes, ruído, variação de pitch e modelação.")
         SettingRow(Icons.Default.Folder, "Biblioteca", "Projetos, ficheiros de áudio e ZIP guardados localmente.")
-        Text("Criador de Sample Packs · versão 1.2.0", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 10.dp))
+        Text("Criador de Sample Packs · versão 1.4.0", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 10.dp))
     }
 }
 
