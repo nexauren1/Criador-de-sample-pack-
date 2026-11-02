@@ -233,17 +233,17 @@ object AudioSynthesizer {
             raw[i] = (tanh(bright * driveScale) / tanh(driveScale).coerceAtLeast(0.0001)).toFloat()
         }
 
-        val fadeFrames = min(frames / 3, max(1, rate / 160))
-        for (i in 0 until fadeFrames) raw[frames - fadeFrames + i] *= (fadeFrames - i - 1).toFloat() / fadeFrames
-
+        // Remove DC before the fade so the final PCM frame is exactly silent.
         var mean = 0.0
         for (v in raw) mean += v
         mean /= raw.size
+        for (i in raw.indices) raw[i] = (raw[i] - mean.toFloat()).coerceIn(-1f, 1f)
+
+        val fadeFrames = min(frames / 3, max(1, rate / 160))
+        for (i in 0 until fadeFrames) raw[frames - fadeFrames + i] *= (fadeFrames - i - 1).toFloat() / fadeFrames
+
         var peak = 0.0
-        for (i in raw.indices) {
-            raw[i] = (raw[i] - mean.toFloat()).coerceIn(-1f, 1f)
-            peak = max(peak, abs(raw[i].toDouble()))
-        }
+        for (v in raw) peak = max(peak, abs(v.toDouble()))
         if (peak < 0.00001) throw IllegalStateException("O sintetizador não produziu áudio útil para $soundType.")
         val gain = (0.86 / peak).coerceAtMost(12.0)
         for (i in raw.indices) raw[i] = (raw[i] * gain.toFloat()).coerceIn(-0.96f, 0.96f)
