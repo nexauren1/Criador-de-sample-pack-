@@ -483,6 +483,7 @@ private fun PackCreatorScreen(categories: List<SampleCategory>, onBack: () -> Un
     var pendingCategoryId by remember { mutableStateOf<String?>(null) }
     val selectedFiles = remember { mutableStateMapOf<String, List<Uri>>() }
     val quantities = remember { mutableStateMapOf<String, String>() }
+    val filePrefixes = remember { mutableStateMapOf<String, String>() }
     var creating by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var resultError by remember { mutableStateOf(false) }
@@ -552,8 +553,15 @@ private fun PackCreatorScreen(categories: List<SampleCategory>, onBack: () -> Un
                 }
                 OutlinedTextField(
                     value = quantities[category.id] ?: "10",
-                    onValueChange = { value -> quantities[category.id] = value.filter(Char::isDigit).take(3) },
+                    onValueChange = { value -> quantities[category.id] = value.filter { it.isDigit() }.take(3) },
                     label = { Text("Quantidade pretendida de samples") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = filePrefixes[category.id] ?: category.name,
+                    onValueChange = { filePrefixes[category.id] = it },
+                    label = { Text("Nome base dos ficheiros (em inglês)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -585,6 +593,9 @@ private fun PackCreatorScreen(categories: List<SampleCategory>, onBack: () -> Un
                     val quantityMap = categories.associate { category ->
                         category.id to (quantities[category.id]?.toIntOrNull() ?: 10).coerceIn(1, 250)
                     }
+                    val prefixMap = categories.associate { category ->
+                        category.id to (filePrefixes[category.id] ?: category.name)
+                    }
                     scope.launch {
                         try {
                             val result = withContext(Dispatchers.IO) {
@@ -594,7 +605,8 @@ private fun PackCreatorScreen(categories: List<SampleCategory>, onBack: () -> Un
                                     genre = genre,
                                     categories = categories,
                                     selectedFiles = fileMap,
-                                    quantities = quantityMap
+                                    quantities = quantityMap,
+                                    samplePrefixes = prefixMap
                                 )
                             }
                             resultMessage = "Pack criado: " + result.fileName + "\n" + result.totalSamples + " sample(s) exportado(s).\nLocalização: " + result.destination

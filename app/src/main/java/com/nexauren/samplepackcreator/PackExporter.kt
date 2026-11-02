@@ -30,7 +30,8 @@ object PackExporter {
         genre: String,
         categories: List<SampleCategory>,
         selectedFiles: Map<String, List<Uri>>,
-        quantities: Map<String, Int>
+        quantities: Map<String, Int>,
+        samplePrefixes: Map<String, String>
     ): Result {
         val safePackName = safeName(packName).ifBlank { "My_Sample_Pack" }
         val workRoot = File(context.cacheDir, "sample-pack-work-" + System.currentTimeMillis())
@@ -70,6 +71,7 @@ object PackExporter {
             }
 
             val requested = (quantities[category.id] ?: 10).coerceIn(1, 250)
+            val samplePrefix = safeName(samplePrefixes[category.id] ?: category.name).ifBlank { safeName(category.name) }
             var produced = 0
             var pass = 0
             while (produced < requested && pass < requested) {
@@ -95,7 +97,7 @@ object PackExporter {
                         producedInPass += 1
                         val label = if (processed != null) WavProcessor.effectName(variationIndex) else "Original"
                         val extension = if (processed != null) "wav" else source.extension.ifBlank { "audio" }
-                        val outputName = safeName(category.name) + "_" +
+                        val outputName = samplePrefix + "_" +
                             produced.toString().padStart(3, '0') + "_" +
                             label + "." + extension
                         File(categoryFolder, outputName).writeBytes(outputBytes)
@@ -220,7 +222,7 @@ object PackExporter {
                 context.contentResolver.openOutputStream(uri)?.use { output ->
                     FileInputStream(source).use { input -> input.copyTo(output) }
                 } ?: throw IllegalStateException("Não foi possível gravar o ficheiro ZIP.")
-                val completed = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
+                val completed = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
                 context.contentResolver.update(uri, completed, null, null)
                 return "Downloads/Sample Pack Creator"
             } catch (exception: Exception) {
