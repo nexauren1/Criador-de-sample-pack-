@@ -778,11 +778,11 @@ private fun PackCreatorScreen(
             }
         }
         Spacer(Modifier.height(14.dp))
-        SectionCard("Efeitos de áudio", "64 efeitos individuais. Ativa apenas os que queres incluir e regula a intensidade de cada um.") {
+        SectionCard("Efeitos de áudio", "65 efeitos individuais. Ativa apenas os que queres incluir e regula a intensidade de cada um.") {
             val enabledEffectCount = effectSettings.values.count { it.enabled && it.intensity > 0f }
             Text("$enabledEffectCount efeito(s) ativo(s) de ${EffectCatalog.all.size}", color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             OutlinedButton(onClick = { effectsExpanded = !effectsExpanded }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (effectsExpanded) "Ocultar controlos dos efeitos" else "Abrir os 64 efeitos e intensidades")
+                Text(if (effectsExpanded) "Ocultar controlos dos efeitos" else "Abrir os 65 efeitos e intensidades")
             }
             if (effectsExpanded) {
                 EffectCatalog.all.groupBy { it.group }.forEach { (group, definitions) ->

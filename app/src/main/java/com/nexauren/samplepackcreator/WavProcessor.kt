@@ -30,7 +30,14 @@ object WavProcessor {
             val def = EffectCatalog.all[variationIndex.mod(EffectCatalog.all.size)]
             applyEffect(samples, wav.channels, wav.sampleRate, def.id, 38f + (variationIndex % 5) * 9f, variationIndex)
         } else {
-            active.forEach { applyEffect(samples, wav.channels, wav.sampleRate, it.id, it.intensity.coerceIn(0f,100f), variationIndex) }
+            active.forEachIndexed { effectIndex, setting ->
+                // Keep the selected effect chain, but nudge the strength per
+                // render so a collection made from one source is not a stack
+                // of byte-identical clones.
+                val offset = (((variationIndex * 7 + effectIndex * 3) % 9) - 4) * 2.0f
+                val variedIntensity = (setting.intensity + offset).coerceIn(0f, 100f)
+                applyEffect(samples, wav.channels, wav.sampleRate, setting.id, variedIntensity, variationIndex)
+            }
         }
         // Gentle deterministic variation prevents byte-identical repeated renders.
         val variationGain = 0.965f + (variationIndex % 29) * 0.0024f
