@@ -111,8 +111,13 @@ object PackExporter {
                 sources.forEachIndexed { sourceIndex, source ->
                     if (produced >= requested) return@forEachIndexed
                     val variationIndex = pass * sources.size + sourceIndex
-                    val processed = source.processableWav?.let { WavProcessor.process(it, variationIndex, effects) }
-                    val outputBytes = processed ?: if (pass == 0) source.bytes else null
+                    val hasSelectedEffects = effects.any { it.enabled && it.intensity > 0f }
+                    val processed = if (hasSelectedEffects) source.processableWav?.let {
+                        WavProcessor.process(it, variationIndex, effects)
+                    } else null
+                    // With no selected processing, keep each imported source once.
+                    // Do not pad the requested quantity with renamed duplicates.
+                    val outputBytes = if (pass == 0) (processed ?: source.bytes) else processed
                     if (outputBytes != null) {
                         produced++
                         producedInPass++
@@ -256,7 +261,7 @@ object PackExporter {
         builder.appendLine()
         builder.appendLine("PROCESSING")
         val chosenEffects = effects.filter { it.enabled && it.intensity > 0f }
-        if (chosenEffects.isEmpty()) builder.appendLine("- A different built-in variation effect is selected for each generated version.")
+        if (chosenEffects.isEmpty()) builder.appendLine("- No effects were applied. Imported source audio was kept clean and unchanged.")
         else chosenEffects.forEach { setting ->
             val label = EffectCatalog.get(setting.id)?.name ?: setting.id
             builder.appendLine("- $label: ${setting.intensity.toInt()}% intensity")

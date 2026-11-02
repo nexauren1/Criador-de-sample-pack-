@@ -35,10 +35,9 @@ object WavProcessor {
         for (i in samples.indices) { samples[i] = readShort(input, cursor) / 32768f; cursor += 2 }
         val frames = samples.size / wav.channels
         val active = effects.filter { it.enabled && it.intensity > 0f }
-        if (active.isEmpty()) {
-            val def = EffectCatalog.all[variationIndex.mod(EffectCatalog.all.size)]
-            applyEffect(samples, wav.channels, wav.sampleRate, def.id, 38f + (variationIndex % 5) * 9f, variationIndex)
-        } else {
+        // A clean render must remain clean. Never insert a random effect/noise
+        // when the user has not explicitly selected an effect.
+        if (active.isNotEmpty()) {
             active.forEachIndexed { effectIndex, setting ->
                 // Keep the selected effect chain, but nudge the strength per
                 // render so a collection made from one source is not a stack
@@ -48,16 +47,8 @@ object WavProcessor {
                 applyEffect(samples, wav.channels, wav.sampleRate, setting.id, variedIntensity, variationIndex)
             }
         }
-        // Gentle deterministic variation prevents byte-identical repeated renders.
-        val variationGain = 0.965f + (variationIndex % 29) * 0.0024f
-        val seed = variationIndex + 1
-        for (frame in 0 until frames) {
-            val ripple = 1f + sin(frame * (0.00071f + seed * 0.000013f)) * (0.0008f + (seed % 7) * 0.0001f)
-            for (channel in 0 until wav.channels) {
-                val i = frame * wav.channels + channel
-                samples[i] = (samples[i] * variationGain * ripple).coerceIn(-0.999f,0.999f)
-            }
-        }
+        // No artificial gain wobble or pseudo-variation: the source stays intact
+        // unless a user-selected effect is enabled.
         val output = input.copyOf()
         cursor = wav.dataOffset
         for (sample in samples) { writeShort(output,cursor,(sample.coerceIn(-1f,1f)*32767f).toInt()); cursor += 2 }

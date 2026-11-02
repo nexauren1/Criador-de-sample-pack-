@@ -550,7 +550,7 @@ private fun SynthesisScreen(categories: List<SampleCategory>, activePreview: Str
                                     val newFiles = withContext(Dispatchers.Default) {
                                         val directory = File(context.filesDir, "sample-pack-studio/generated/" + safeFilePart(category.name))
                                         if (!directory.exists() && !directory.mkdirs()) throw IllegalStateException("Não foi possível criar a pasta local.")
-                                        val labels = listOf("Deep", "Punchy", "Tight", "Dark", "Bright", "Warm", "Dirty", "Crisp", "Raw", "Wide")
+                                        val labels = listOf("Variation", "Variation", "Variation", "Variation", "Variation", "Variation", "Variation", "Variation", "Variation", "Variation")
                                         buildList {
                                             repeat(number) { index ->
                                                 val id = StudioLibraryStore.newId()
@@ -560,7 +560,7 @@ private fun SynthesisScreen(categories: List<SampleCategory>, activePreview: Str
                                                     soundType = stableType,
                                                     durationMs = milliseconds,
                                                     variation = index,
-                                                    seed = System.nanoTime() + index * 997L,
+                                                    seed = (stableType.lowercase(Locale.ROOT).hashCode().toLong() shl 32) xor (index.toLong() * 0x9E3779B97F4A7C15UL.toLong()) xor 0x53414D504C45L,
                                                     pitchSemitones = stablePitch,
                                                     decay = stableDecay,
                                                     brightness = stableBrightness,
