@@ -38,7 +38,7 @@ jobs:
           android sdk install build-tools/36.0.0
 
       - name: Executar testes e compilar APK
-        run: gradle --no-daemon testDebugUnitTest assembleDebug --stacktrace
+        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug --stacktrace
 
       - name: Guardar APK de diagnóstico
         if: success()
