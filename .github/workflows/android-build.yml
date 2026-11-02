@@ -33,7 +33,9 @@ jobs:
           gradle-version: "9.5.0"
 
       - name: Instalar plataforma Android 37
-        run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
+        run: |
+          android sdk install --beta platforms/android-37
+          android sdk install build-tools/36.0.0
 
       - name: Executar testes e compilar APK
         run: gradle --no-daemon testDebugUnitTest assembleDebug --stacktrace
